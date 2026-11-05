@@ -9,17 +9,16 @@ import { RunOnceScheduler } from '../../../../base/common/async.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { KeyCode } from '../../../../base/common/keyCodes.js';
 import { DisposableStore, toDisposable } from '../../../../base/common/lifecycle.js';
-import { dirname, joinPath } from '../../../../base/common/resources.js';
+import { dirname, isEqual, joinPath } from '../../../../base/common/resources.js';
 import { URI } from '../../../../base/common/uri.js';
-import { generateUuid } from '../../../../base/common/uuid.js';
 import { VSBuffer } from '../../../../base/common/buffer.js';
 import { EditorExtensionsRegistry } from '../../../../editor/browser/editorExtensions.js';
 import { IBulkEditService, ResourceTextEdit } from '../../../../editor/browser/services/bulkEditService.js';
 import { CodeEditorWidget } from '../../../../editor/browser/widget/codeEditor/codeEditorWidget.js';
+import { Position } from '../../../../editor/common/core/position.js';
 import { Range } from '../../../../editor/common/core/range.js';
-import { ILanguageService } from '../../../../editor/common/languages/language.js';
-import { ITextModel } from '../../../../editor/common/model.js';
-import { IModelService } from '../../../../editor/common/services/model.js';
+import { Selection } from '../../../../editor/common/core/selection.js';
+import { ITextModel, TrackedRangeStickiness } from '../../../../editor/common/model.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { localize } from '../../../../nls.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
@@ -27,6 +26,7 @@ import { IContextKeyService } from '../../../../platform/contextkey/common/conte
 import { IEditorOptions } from '../../../../platform/editor/common/editor.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { IMarker, IMarkerService, MarkerSeverity } from '../../../../platform/markers/common/markers.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { IStorageService } from '../../../../platform/storage/common/storage.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
@@ -37,8 +37,8 @@ import { EditorPane } from '../../../browser/parts/editor/editorPane.js';
 import { IEditorOpenContext } from '../../../common/editor.js';
 import { IEditorGroup } from '../../../services/editor/common/editorGroupsService.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
-import { CODE_CANVAS_BLOCK_SCHEME, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_LAYOUT_FOLDER } from '../common/codeCanvas.js';
-import { CodeCanvas, Engine, FileLayout, loadEngine, OtherFileChange } from './codeCanvasEngine.js';
+import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_LAYOUT_FOLDER } from '../common/codeCanvas.js';
+import { CodeCanvas, EditorHandle, EditorOptions, Engine, FileLayout, HostDiagnostic, loadEngine, OtherFileChange } from './codeCanvasEngine.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
 import { ICodeCanvasProjectService } from './codeCanvasProjects.js';
 
@@ -69,10 +69,9 @@ export class CodeCanvasEditor extends EditorPane {
 		@IBulkEditService private readonly bulkEditService: IBulkEditService,
 		@IEditorService private readonly editorService: IEditorService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
-		@IModelService private readonly modelService: IModelService,
-		@ILanguageService private readonly languageService: ILanguageService,
 		@ILogService private readonly logService: ILogService,
 		@IConfigurationService private readonly configurationService: IConfigurationService,
+		@IMarkerService private readonly markerService: IMarkerService,
 	) {
 		super(CodeCanvasEditor.ID, group, telemetryService, themeService, storageService);
 	}
@@ -124,7 +123,7 @@ export class CodeCanvasEditor extends EditorPane {
 		const canvas: CodeCanvas = this.canvas = new engine.CodeCanvas(this.container, {
 			project: folderProject.project,
 			theme: isDark(this.themeService.getColorTheme().type) ? 'dark' : 'light',
-			createEditor: options => this.createBlockEditor(options),
+			createEditor: options => this.createBlockEditor(model, options),
 			onTextChange: (text, otherFiles) => {
 				isApplyingCanvasEdit = true;
 				try {
@@ -158,6 +157,14 @@ export class CodeCanvasEditor extends EditorPane {
 		}));
 
 		canvas.openFile(path, model.getValue(), await this.readLayout(layoutResource));
+		// Errors come from VS Code's Problems (the TypeScript extension), not from the engine.
+		const showProblems = () => canvas.setDiagnostics(this.problemsOf(model));
+		showProblems();
+		this.inputDisposables.add(this.markerService.onMarkerChanged(resources => {
+			if (resources.some(resource => isEqual(resource, model.uri))) {
+				showProblems();
+			}
+		}));
 		this.inputDisposables.add(model.onDidChangeContent(() => {
 			if (!isApplyingCanvasEdit) {
 				canvas.setText(model.getValue());
@@ -171,6 +178,22 @@ export class CodeCanvasEditor extends EditorPane {
 			blockToRevealByResource.delete(input.resource.toString());
 			canvas.reveal(blockToReveal);
 		}
+	}
+
+	private problemsOf(model: ITextModel): HostDiagnostic[] {
+		const markers = this.markerService.read({ resource: model.uri, severities: MarkerSeverity.Error | MarkerSeverity.Warning });
+		return markers.map((marker: IMarker): HostDiagnostic => {
+			const start = model.getOffsetAt({ lineNumber: marker.startLineNumber, column: marker.startColumn });
+			const end = model.getOffsetAt({ lineNumber: marker.endLineNumber, column: marker.endColumn });
+			return {
+				start,
+				length: end - start,
+				line: marker.startLineNumber,
+				message: marker.message,
+				source: 'type',
+				severity: marker.severity === MarkerSeverity.Error ? 'error' : 'warning',
+			};
+		});
 	}
 
 	/** Blocks use the same font as the text editor. */
@@ -209,14 +232,12 @@ export class CodeCanvasEditor extends EditorPane {
 		}
 	}
 
-	/** Blocks are edited in Monaco, on a small document of their own that the canvas copies back into the file. */
-	private createBlockEditor({ parent, text, selection, onChange, onClose }: { parent: HTMLElement; text: string; selection?: [number, number]; onChange(text: string): void; onClose(): void }) {
+	/**
+	 * Blocks are edited in Monaco on the file's own document, with every line outside the block hidden.
+	 * So IntelliSense, hovers and error squiggles work as in the text editor, and undo is the file's.
+	 */
+	private createBlockEditor(model: ITextModel, { parent, start, end, selection, onClose }: EditorOptions): EditorHandle {
 		const disposables = new DisposableStore();
-		const blockModel = this.modelService.createModel(text, this.languageService.createById('typescript'), URI.from({ scheme: CODE_CANVAS_BLOCK_SCHEME, path: `/${generateUuid()}.ts` }));
-		// Editor features open the document by URI too, and the last reference to go disposes it.
-		// Holding one from the start keeps it alive until the block editor closes.
-		const blockModelReference = this.textModelService.createModelReference(blockModel.uri);
-		disposables.add(toDisposable(() => blockModelReference.then(reference => reference.dispose(), () => blockModel.dispose())));
 		const editor = disposables.add(this.instantiationService.createInstance(CodeEditorWidget, parent, {
 			automaticLayout: true,
 			minimap: { enabled: false },
@@ -224,14 +245,45 @@ export class CodeCanvasEditor extends EditorPane {
 			lineNumbersMinChars: 3,
 			fixedOverflowWidgets: true,
 		}, { contributions: EditorExtensionsRegistry.getEditorContributions() }));
-		editor.setModel(blockModel);
-		if (selection) {
-			const start = blockModel.getPositionAt(selection[0]);
-			const end = blockModel.getPositionAt(selection[1]);
-			editor.setSelection(Range.fromPositions(start, end));
-			editor.revealRangeInCenterIfOutsideViewport(Range.fromPositions(start, end));
-		}
-		disposables.add(blockModel.onDidChangeContent(() => onChange(blockModel.getValue())));
+		editor.setModel(model);
+
+		// Grows with typing at its edges, so the block's new lines stay visible.
+		const [blockDecorationId] = model.deltaDecorations([], [{
+			range: Range.fromPositions(model.getPositionAt(start), model.getPositionAt(end)),
+			options: { description: 'code-canvas-block', stickiness: TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges },
+		}]);
+		disposables.add(toDisposable(() => model.deltaDecorations([blockDecorationId], [])));
+		const showOnlyBlockLines = () => {
+			const blockRange = model.getDecorationRange(blockDecorationId);
+			if (!blockRange) {
+				return;
+			}
+			const lastLine = model.getLineCount();
+			const linesOutsideBlock: Range[] = [];
+			if (blockRange.startLineNumber > 1) {
+				linesOutsideBlock.push(new Range(1, 1, blockRange.startLineNumber - 1, 1));
+			}
+			if (blockRange.endLineNumber < lastLine) {
+				linesOutsideBlock.push(new Range(blockRange.endLineNumber + 1, 1, lastLine, 1));
+			}
+			editor.setHiddenAreas(linesOutsideBlock, CodeCanvasEditor);
+		};
+		showOnlyBlockLines();
+		disposables.add(model.onDidChangeContent(showOnlyBlockLines));
+		// Keys like Cmd+Up would otherwise move the cursor into the hidden lines, outside the block.
+		disposables.add(editor.onDidChangeCursorSelection(e => {
+			const blockRange = model.getDecorationRange(blockDecorationId);
+			if (!blockRange || blockRange.containsRange(e.selection)) {
+				return;
+			}
+			const intoBlock = (position: Position) => position.isBefore(blockRange.getStartPosition()) ? blockRange.getStartPosition() : blockRange.getEndPosition().isBefore(position) ? blockRange.getEndPosition() : position;
+			editor.setSelection(Selection.fromPositions(intoBlock(e.selection.getSelectionStart()), intoBlock(e.selection.getPosition())));
+		}));
+
+		const [selectionStart, selectionEnd] = selection ?? [0, 0];
+		editor.setSelection(Range.fromPositions(model.getPositionAt(start + selectionStart), model.getPositionAt(start + selectionEnd)));
+		editor.revealRangeInCenterIfOutsideViewport(editor.getSelection()!);
+
 		disposables.add(editor.onKeyDown(e => {
 			const isSuggestOpen = editor.invokeWithinContext(accessor => accessor.get(IContextKeyService).getContextKeyValue<boolean>('suggestWidgetVisible'));
 			const isClose = (e.keyCode === KeyCode.Escape && !isSuggestOpen) || (e.keyCode === KeyCode.Enter && (e.metaKey || e.ctrlKey));
@@ -244,6 +296,7 @@ export class CodeCanvasEditor extends EditorPane {
 		return {
 			focus: () => editor.focus(),
 			destroy: () => disposables.dispose(),
+			editsFile: true,
 		};
 	}
 

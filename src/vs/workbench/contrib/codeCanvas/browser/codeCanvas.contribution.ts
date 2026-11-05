@@ -14,8 +14,6 @@ import { SyncDescriptor } from '../../../../platform/instantiation/common/descri
 import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
 import { IInstantiationService, ServicesAccessor } from '../../../../platform/instantiation/common/instantiation.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
-import { IModelService } from '../../../../editor/common/services/model.js';
-import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { EditorPaneDescriptor, IEditorPaneRegistry } from '../../../browser/editor.js';
 import { REOPEN_ACTIVE_EDITOR_WITH_COMMAND_ID } from '../../../browser/parts/editor/editorCommands.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
@@ -23,7 +21,7 @@ import { ActiveEditorContext, ResourceContextKey } from '../../../common/context
 import { DEFAULT_EDITOR_ASSOCIATION, EditorExtensions, IEditorFactoryRegistry, IEditorSerializer } from '../../../common/editor.js';
 import { IEditorResolverService, RegisteredEditorPriority } from '../../../services/editor/common/editorResolverService.js';
 import { TEXT_FILE_EDITOR_ID } from '../../files/common/files.js';
-import { CODE_CANVAS_BLOCK_SCHEME, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN } from '../common/codeCanvas.js';
+import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN } from '../common/codeCanvas.js';
 import { CodeCanvasEditor } from './codeCanvasEditor.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
 import { CodeCanvasProjectService, ICodeCanvasProjectService } from './codeCanvasProjects.js';
@@ -77,23 +75,6 @@ class CodeCanvasEditorResolverContribution extends Disposable implements IWorkbe
 	}
 }
 registerWorkbenchContribution2(CodeCanvasEditorResolverContribution.ID, CodeCanvasEditorResolverContribution, WorkbenchPhase.BlockStartup);
-
-/** Editor features (outline, inlay hints…) look documents up by URI: serve the block editors' in-memory ones. */
-class CodeCanvasBlockDocumentsContribution extends Disposable implements IWorkbenchContribution {
-
-	static readonly ID = 'workbench.contrib.codeCanvasBlockDocuments';
-
-	constructor(
-		@ITextModelService textModelService: ITextModelService,
-		@IModelService modelService: IModelService,
-	) {
-		super();
-		this._register(textModelService.registerTextModelContentProvider(CODE_CANVAS_BLOCK_SCHEME, {
-			provideTextContent: async resource => modelService.getModel(resource),
-		}));
-	}
-}
-registerWorkbenchContribution2(CodeCanvasBlockDocumentsContribution.ID, CodeCanvasBlockDocumentsContribution, WorkbenchPhase.AfterRestored);
 
 const isCanvasFile = ContextKeyExpr.or(...CODE_CANVAS_FILE_EXTENSIONS.map(extension => ResourceContextKey.Extension.isEqualTo(extension)));
 const textEditorOnCanvasFile = ContextKeyExpr.and(ActiveEditorContext.isEqualTo(TEXT_FILE_EDITOR_ID), isCanvasFile);

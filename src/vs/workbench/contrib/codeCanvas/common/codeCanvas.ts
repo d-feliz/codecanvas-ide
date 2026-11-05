@@ -12,6 +12,3 @@ export const CODE_CANVAS_FILE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts'];
 
 /** Per-repo folder with block positions, meant to be committed: `.codecanvas/<path>.json`. */
 export const CODE_CANVAS_LAYOUT_FOLDER = '.codecanvas';
-
-/** In-memory documents of the block editors (a block's code, copied back into its file). */
-export const CODE_CANVAS_BLOCK_SCHEME = 'codecanvas-block';

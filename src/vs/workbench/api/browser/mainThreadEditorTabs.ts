@@ -21,6 +21,7 @@ import { CustomEditorInput } from '../../contrib/customEditor/browser/customEdit
 import { isCustomEditorCompatibleInput } from '../../contrib/customEditor/common/customEditor.js';
 import { InteractiveEditorInput } from '../../contrib/interactive/browser/interactiveEditorInput.js';
 import { MergeEditorInput } from '../../contrib/mergeEditor/browser/mergeEditorInput.js';
+import { CodeCanvasEditorInput } from '../../contrib/codeCanvas/browser/codeCanvasEditorInput.js';
 import { MultiDiffEditorInput } from '../../contrib/multiDiffEditor/browser/multiDiffEditorInput.js';
 import { NotebookEditorInput } from '../../contrib/notebook/common/notebookEditorInput.js';
 import { TerminalEditorInput } from '../../contrib/terminal/browser/terminalEditorInput.js';
@@ -130,6 +131,15 @@ export class MainThreadEditorTabs implements MainThreadEditorTabsShape {
 		}
 
 		if (editor instanceof AbstractTextResourceEditorInput) {
+			return {
+				kind: TabInputKind.TextInput,
+				uri: editor.resource
+			};
+		}
+
+		// CodeCanvas: the canvas is another view of a text file. Language extensions only check files
+		// open in text tabs (TypeScript's errors, for one), so report it as one.
+		if (editor instanceof CodeCanvasEditorInput) {
 			return {
 				kind: TabInputKind.TextInput,
 				uri: editor.resource

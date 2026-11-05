@@ -69,6 +69,11 @@ const assert = (condition, message) => {
 
 	// open as canvas from the text editor
 	await openFile('cart.ts');
+	// Quick Open reopens a file the way it was last shown: start from the text editor.
+	const isCanvasShown = await page.waitForSelector(`${canvas} .cc-block`, { timeout: 3000 }).then(() => true, () => false);
+	if (isCanvasShown) {
+		await page.click('.editor-actions [aria-label*="Open as Text"]');
+	}
 	await page.waitForSelector('.monaco-editor .view-lines');
 	const hasCanvasButton = await page.waitForSelector('.editor-actions [aria-label*="Open as Canvas"]', { timeout: 10000 }).then(() => true, () => false);
 	assert(hasCanvasButton, 'text editor shows the Open as Canvas button');
@@ -86,11 +91,28 @@ const assert = (condition, message) => {
 	await block('Cart/total').locator('.cc-head').click();
 	await page.waitForSelector(`${canvas} .cc-editor .monaco-editor .view-lines`, { timeout: 10000 });
 	assert(true, 'clicking the selected block opens it in Monaco');
-	await page.locator(`${canvas} .cc-editor .monaco-editor .view-lines`).click();
+	const blockEditor = `${canvas} .cc-editor .monaco-editor`;
+	const totalPreviewBefore = await block('Cart/total').locator('.cc-prev').innerText();
+	const shownLineNumbers = await page.locator(`${blockEditor} .line-numbers`).allInnerTexts();
+	assert(shownLineNumbers[0] === '36' && shownLineNumbers.length <= 6, `the block editor shows only the block's lines of the file (${shownLineNumbers.join(',')})`);
+	await page.locator(`${blockEditor} .view-lines`).click();
 	await page.keyboard.press('Meta+ArrowUp');
 	await page.keyboard.press('End');
 	await page.keyboard.press('Enter');
 	await page.keyboard.type('const marker = 1;');
+	await page.waitForTimeout(100);
+	assert((await block('Cart/total').locator('.cc-prev').innerText()).startsWith('const marker = 1;'), 'Cmd+Up stays inside the block');
+	await page.keyboard.press('Enter');
+	await page.keyboard.type('const wrong: string = this.');
+	// A method icon means TypeScript answered, not word-based completion (the word is in the file too).
+	const suggestsSubtotal = await page.waitForSelector(`.suggest-widget .monaco-list-row[aria-label*="subtotal"] .codicon-symbol-method`, { timeout: 30000 }).then(() => true, () => false);
+	assert(suggestsSubtotal, 'IntelliSense in the block editor suggests Cart members (from TypeScript)');
+	await page.keyboard.press('Escape');
+	await page.keyboard.type('subtotal();');
+	const hasSquiggle = await page.waitForSelector(`${blockEditor} .squiggly-error`, { timeout: 30000 }).then(() => true, () => false);
+	assert(hasSquiggle, 'type errors are underlined in the block editor');
+	const hasBadge = await page.waitForSelector(`${canvas} .cc-block[data-id="Cart/total"] .cc-err`, { timeout: 10000 }).then(() => true, () => false);
+	assert(hasBadge, 'and marked on the block, from VS Code\'s Problems');
 	await page.waitForTimeout(300);
 	assert(!(await page.locator(`${canvas} .cc-bar`).isVisible()), 'the canvas toolbar hides while a block is edited');
 	await page.screenshot({ path: path.join(screenshots, 'canvas-block-editor.png') });
@@ -103,11 +125,13 @@ const assert = (condition, message) => {
 
 	// undo goes through the document
 	await page.locator(`${canvas} .cc-root`).focus();
-	for (let i = 0; i < 30 && (await block('Cart/total').locator('.cc-prev').innerText()).includes('marker'); i++) {
+	for (let i = 0; i < 80 && (await block('Cart/total').locator('.cc-prev').innerText()) !== totalPreviewBefore; i++) {
 		await page.keyboard.press('Meta+z');
 		await page.waitForTimeout(60);
 	}
-	assert(!(await block('Cart/total').locator('.cc-prev').innerText()).includes('marker'), 'undo on the canvas reverts the edit');
+	assert((await block('Cart/total').locator('.cc-prev').innerText()) === totalPreviewBefore, 'undo on the canvas reverts the edit');
+	const badgeCleared = await page.waitForSelector(`${canvas} .cc-block[data-id="Cart/total"] .cc-err`, { state: 'detached', timeout: 15000 }).then(() => true, () => false);
+	assert(badgeCleared, 'and the error marker goes away');
 
 	// jump to a block in another file
 	await selectBlock('Cart/total');

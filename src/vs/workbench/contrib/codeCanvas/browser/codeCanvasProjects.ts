@@ -14,7 +14,7 @@ import { IFileService, IFileStat } from '../../../../platform/files/common/files
 import { createDecorator, IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_LAYOUT_FOLDER } from '../common/codeCanvas.js';
-import { loadEngine, loadLibFiles, Project } from './codeCanvasEngine.js';
+import { loadEngine, Project } from './codeCanvasEngine.js';
 
 /** Folders that never hold the project's own source. */
 const SKIPPED_FOLDERS = new Set(['node_modules', '.git', 'out', 'dist', 'build', '.build', 'coverage', CODE_CANVAS_LAYOUT_FOLDER]);
@@ -126,8 +126,9 @@ export class CodeCanvasProjectService extends Disposable implements ICodeCanvasP
 	}
 
 	private async createFolderProject(folder: URI): Promise<CodeCanvasFolderProject> {
-		const [engine, libFiles, files] = await Promise.all([loadEngine(), loadLibFiles(this.fileService), this.readSourceFiles(folder)]);
-		const project = new engine.Project(files, { libFiles });
+		// No standard library: type errors come from VS Code's TypeScript service; usage links don't need it.
+		const [engine, files] = await Promise.all([loadEngine(), this.readSourceFiles(folder)]);
+		const project = new engine.Project(files);
 		return this.projects.add(this.instantiationService.createInstance(CodeCanvasFolderProject, folder, project));
 	}
 

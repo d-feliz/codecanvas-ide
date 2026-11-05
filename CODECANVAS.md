@@ -13,9 +13,13 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   and keeps settings separately from VS Code and Code - OSS (settings go in `~/.codecanvas-ide`).
 - `src/vs/workbench/contrib/codeCanvas/`: the canvas editor. TypeScript files get "Open as Canvas"
   (title bar button, command, and Open With…). The canvas edits the file's text document, so unsaved
-  changes, save and undo are shared with the text editor; blocks are edited in Monaco; a rename that
-  changes several files is one workspace edit. Block positions are saved in `.codecanvas/` in the
-  workspace folder.
+  changes, save and undo are shared with the text editor. Blocks are edited in Monaco on the file's
+  own document with the other lines hidden, so IntelliSense, hovers and error squiggles work there.
+  Errors on blocks come from Problems (the TypeScript extension). A rename that changes several
+  files is one workspace edit. Block positions are saved in `.codecanvas/` in the workspace folder.
+- `api/browser/mainThreadEditorTabs.ts`: extensions see a canvas tab as a text tab of its file.
+  The TypeScript extension only checks files open in text tabs; without this, a file shown only as a
+  canvas would get no errors.
 - `workbench.common.main.ts`: imports that contribution.
 - `workbench.html`, `workbench-dev.html`: allow the `codecanvas` Trusted Types policy (the engine
   renders blocks with HTML strings).
