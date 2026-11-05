@@ -3,7 +3,7 @@
 This is the desktop app of [CodeCanvas](https://github.com/d-feliz/codecanvas): a fork of
 [Code-OSS](https://github.com/microsoft/vscode) (the open-source code of VS Code) where TypeScript
 files can also be edited as a zoomable diagram. The canvas engine lives in the CodeCanvas repo; this
-fork will embed it as a built-in editor.
+fork embeds it as a built-in editor ("Open as Canvas" on any TypeScript file).
 
 ## Changes from upstream
 
