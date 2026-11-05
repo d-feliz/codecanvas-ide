@@ -1,0 +1,23 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) CodeCanvas contributors. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.code-canvas-editor {
+	position: relative;
+	overflow: hidden;
+}
+
+/* The engine's canvas follows the workbench theme and font. */
+.monaco-workbench .code-canvas-editor .cc-root {
+	--cc-bg: var(--vscode-editor-background);
+	--cc-panel: var(--vscode-editorWidget-background);
+	--cc-panel-border: var(--vscode-editorWidget-border, var(--vscode-widget-border, rgba(127, 127, 127, .3)));
+	--cc-text: var(--vscode-editor-foreground);
+	--cc-muted: var(--vscode-descriptionForeground);
+	--cc-accent: var(--vscode-focusBorder);
+	--cc-danger: var(--vscode-editorError-foreground);
+	font-family: var(--vscode-font-family);
+	/* Like the text editor: no ligatures or contextual alternates (SF Mono draws `[]` as a box with them). */
+	font-feature-settings: "liga" 0, "calt" 0;
+}

@@ -1,0 +1,303 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) CodeCanvas contributors. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import './media/codeCanvasEditor.css';
+import { $, addDisposableListener, append, Dimension, EventType } from '../../../../base/browser/dom.js';
+import { RunOnceScheduler } from '../../../../base/common/async.js';
+import { CancellationToken } from '../../../../base/common/cancellation.js';
+import { KeyCode } from '../../../../base/common/keyCodes.js';
+import { DisposableStore, toDisposable } from '../../../../base/common/lifecycle.js';
+import { dirname, joinPath } from '../../../../base/common/resources.js';
+import { URI } from '../../../../base/common/uri.js';
+import { generateUuid } from '../../../../base/common/uuid.js';
+import { VSBuffer } from '../../../../base/common/buffer.js';
+import { EditorExtensionsRegistry } from '../../../../editor/browser/editorExtensions.js';
+import { IBulkEditService, ResourceTextEdit } from '../../../../editor/browser/services/bulkEditService.js';
+import { CodeEditorWidget } from '../../../../editor/browser/widget/codeEditor/codeEditorWidget.js';
+import { Range } from '../../../../editor/common/core/range.js';
+import { ILanguageService } from '../../../../editor/common/languages/language.js';
+import { ITextModel } from '../../../../editor/common/model.js';
+import { IModelService } from '../../../../editor/common/services/model.js';
+import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
+import { localize } from '../../../../nls.js';
+import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
+import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
+import { IEditorOptions } from '../../../../platform/editor/common/editor.js';
+import { IFileService } from '../../../../platform/files/common/files.js';
+import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { ILogService } from '../../../../platform/log/common/log.js';
+import { IStorageService } from '../../../../platform/storage/common/storage.js';
+import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
+import { isDark } from '../../../../platform/theme/common/theme.js';
+import { IThemeService } from '../../../../platform/theme/common/themeService.js';
+import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
+import { EditorPane } from '../../../browser/parts/editor/editorPane.js';
+import { IEditorOpenContext } from '../../../common/editor.js';
+import { IEditorGroup } from '../../../services/editor/common/editorGroupsService.js';
+import { IEditorService } from '../../../services/editor/common/editorService.js';
+import { CODE_CANVAS_BLOCK_SCHEME, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_LAYOUT_FOLDER } from '../common/codeCanvas.js';
+import { CodeCanvas, Engine, FileLayout, loadEngine, OtherFileChange } from './codeCanvasEngine.js';
+import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
+import { ICodeCanvasProjectService } from './codeCanvasProjects.js';
+
+/** Blocks to select once a canvas opens, when the user jumped to a block in another file. */
+const blockToRevealByResource = new Map<string, string>();
+
+/**
+ * Shows a TypeScript file as the CodeCanvas diagram. Text stays the source of truth: the canvas
+ * edits the file's text document, and every change to the document re-renders the canvas.
+ */
+export class CodeCanvasEditor extends EditorPane {
+
+	static readonly ID = CODE_CANVAS_EDITOR_ID;
+
+	private container: HTMLElement | undefined;
+	private canvas: CodeCanvas | undefined;
+	private readonly inputDisposables = this._register(new DisposableStore());
+
+	constructor(
+		group: IEditorGroup,
+		@ITelemetryService telemetryService: ITelemetryService,
+		@IThemeService themeService: IThemeService,
+		@IStorageService storageService: IStorageService,
+		@ITextModelService private readonly textModelService: ITextModelService,
+		@IFileService private readonly fileService: IFileService,
+		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
+		@ICodeCanvasProjectService private readonly projectService: ICodeCanvasProjectService,
+		@IBulkEditService private readonly bulkEditService: IBulkEditService,
+		@IEditorService private readonly editorService: IEditorService,
+		@IInstantiationService private readonly instantiationService: IInstantiationService,
+		@IModelService private readonly modelService: IModelService,
+		@ILanguageService private readonly languageService: ILanguageService,
+		@ILogService private readonly logService: ILogService,
+		@IConfigurationService private readonly configurationService: IConfigurationService,
+	) {
+		super(CodeCanvasEditor.ID, group, telemetryService, themeService, storageService);
+	}
+
+	protected override createEditor(parent: HTMLElement): void {
+		this.container = append(parent, $('.code-canvas-editor'));
+		this.applyEditorFont();
+		this._register(this.configurationService.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration('editor.fontFamily')) {
+				this.applyEditorFont();
+			}
+		}));
+		// The canvas handles its own shortcuts (undo, delete, F2…). Keys it handled must not also run
+		// the workbench command bound to them.
+		this._register(addDisposableListener(this.container, EventType.KEY_DOWN, (e: KeyboardEvent) => {
+			if (e.defaultPrevented) {
+				e.stopPropagation();
+			}
+		}));
+	}
+
+	override async setInput(input: CodeCanvasEditorInput, options: IEditorOptions | undefined, context: IEditorOpenContext, token: CancellationToken): Promise<void> {
+		this.inputDisposables.clear();
+		await super.setInput(input, options, context, token);
+
+		const folder = this.workspaceContextService.getWorkspaceFolder(input.resource)?.uri ?? dirname(input.resource);
+		const [engine, modelReference, folderProject] = await Promise.all([
+			loadEngine(),
+			this.textModelService.createModelReference(input.resource),
+			this.projectService.getFolderProject(folder),
+		]);
+		if (token.isCancellationRequested || !this.container) {
+			modelReference.dispose();
+			return;
+		}
+		this.inputDisposables.add(modelReference);
+		const model = modelReference.object.textEditorModel;
+		const path = folderProject.projectPath(input.resource) ?? input.getName();
+		const layoutResource = joinPath(folder, CODE_CANVAS_LAYOUT_FOLDER, `${path}.json`);
+
+		let isApplyingCanvasEdit = false;
+		let layoutToSave: FileLayout | undefined;
+		const layoutSaver = this.inputDisposables.add(new RunOnceScheduler(() => {
+			if (layoutToSave) {
+				void this.writeLayout(engine, layoutResource, layoutToSave, canvas);
+			}
+		}, 400));
+
+		const canvas: CodeCanvas = this.canvas = new engine.CodeCanvas(this.container, {
+			project: folderProject.project,
+			theme: isDark(this.themeService.getColorTheme().type) ? 'dark' : 'light',
+			createEditor: options => this.createBlockEditor(options),
+			onTextChange: (text, otherFiles) => {
+				isApplyingCanvasEdit = true;
+				try {
+					if (otherFiles) {
+						void this.applyRenameAcrossFiles(model, text, folder, otherFiles);
+					} else {
+						replaceText(model, text);
+					}
+				} finally {
+					isApplyingCanvasEdit = false;
+				}
+			},
+			onLayoutChange: layout => {
+				layoutToSave = layout;
+				layoutSaver.schedule();
+			},
+			onUndo: () => void model.undo(),
+			onRedo: () => void model.redo(),
+			onOpenBlock: (otherPath, blockId) => {
+				const resource = joinPath(folder, otherPath);
+				blockToRevealByResource.set(resource.toString(), blockId);
+				void this.editorService.openEditor({ resource, options: { override: CODE_CANVAS_EDITOR_ID } }, this.group);
+			},
+		});
+		this.inputDisposables.add(toDisposable(() => {
+			layoutSaver.flush();
+			canvas.destroy();
+			if (this.canvas === canvas) {
+				this.canvas = undefined;
+			}
+		}));
+
+		canvas.openFile(path, model.getValue(), await this.readLayout(layoutResource));
+		this.inputDisposables.add(model.onDidChangeContent(() => {
+			if (!isApplyingCanvasEdit) {
+				canvas.setText(model.getValue());
+			}
+		}));
+		this.inputDisposables.add(folderProject.onDidChangeOtherFiles(() => canvas.refreshProject()));
+		this.inputDisposables.add(this.themeService.onDidColorThemeChange(theme => canvas.setTheme(isDark(theme.type) ? 'dark' : 'light')));
+
+		const blockToReveal = blockToRevealByResource.get(input.resource.toString());
+		if (blockToReveal) {
+			blockToRevealByResource.delete(input.resource.toString());
+			canvas.reveal(blockToReveal);
+		}
+	}
+
+	/** Blocks use the same font as the text editor. */
+	private applyEditorFont() {
+		const fontFamily = this.configurationService.getValue<string>('editor.fontFamily');
+		this.container?.style.setProperty('--cc-font', fontFamily || 'var(--monaco-monospace-font)');
+	}
+
+	private async writeLayout(engine: Engine, resource: URI, layout: FileLayout, canvas: CodeCanvas) {
+		try {
+			await this.fileService.writeFile(resource, VSBuffer.fromString(engine.serializeLayout(layout, canvas.getModel())));
+		} catch (error) {
+			this.logService.error('[codeCanvas] could not save block positions', error);
+		}
+	}
+
+	private async readLayout(resource: URI): Promise<FileLayout | null> {
+		try {
+			return JSON.parse((await this.fileService.readFile(resource)).value.toString()) as FileLayout;
+		} catch {
+			return null;
+		}
+	}
+
+	/** A rename changes several files: one workspace edit, so undo reverts it in all of them. */
+	private async applyRenameAcrossFiles(model: ITextModel, text: string, folder: URI, otherFiles: OtherFileChange[]) {
+		const edits = [{ resource: model.uri, before: model.getValue(), after: text }, ...otherFiles.map(change => ({ resource: joinPath(folder, change.path), before: change.before, after: change.after }))]
+			.map(({ resource, before, after }) => {
+				const change = changedRegion(before, after);
+				return new ResourceTextEdit(resource, { range: rangeOfOffsets(before, change.start, change.end), text: change.text });
+			});
+		try {
+			await this.bulkEditService.apply(edits, { label: localize('codeCanvas.rename', "Rename"), quotableLabel: localize('codeCanvas.renameQuoted', "Rename") });
+		} catch (error) {
+			this.logService.error('[codeCanvas] rename failed', error);
+		}
+	}
+
+	/** Blocks are edited in Monaco, on a small document of their own that the canvas copies back into the file. */
+	private createBlockEditor({ parent, text, selection, onChange, onClose }: { parent: HTMLElement; text: string; selection?: [number, number]; onChange(text: string): void; onClose(): void }) {
+		const disposables = new DisposableStore();
+		const blockModel = this.modelService.createModel(text, this.languageService.createById('typescript'), URI.from({ scheme: CODE_CANVAS_BLOCK_SCHEME, path: `/${generateUuid()}.ts` }));
+		// Editor features open the document by URI too, and the last reference to go disposes it.
+		// Holding one from the start keeps it alive until the block editor closes.
+		const blockModelReference = this.textModelService.createModelReference(blockModel.uri);
+		disposables.add(toDisposable(() => blockModelReference.then(reference => reference.dispose(), () => blockModel.dispose())));
+		const editor = disposables.add(this.instantiationService.createInstance(CodeEditorWidget, parent, {
+			automaticLayout: true,
+			minimap: { enabled: false },
+			scrollBeyondLastLine: false,
+			lineNumbersMinChars: 3,
+			fixedOverflowWidgets: true,
+		}, { contributions: EditorExtensionsRegistry.getEditorContributions() }));
+		editor.setModel(blockModel);
+		if (selection) {
+			const start = blockModel.getPositionAt(selection[0]);
+			const end = blockModel.getPositionAt(selection[1]);
+			editor.setSelection(Range.fromPositions(start, end));
+			editor.revealRangeInCenterIfOutsideViewport(Range.fromPositions(start, end));
+		}
+		disposables.add(blockModel.onDidChangeContent(() => onChange(blockModel.getValue())));
+		disposables.add(editor.onKeyDown(e => {
+			const isSuggestOpen = editor.invokeWithinContext(accessor => accessor.get(IContextKeyService).getContextKeyValue<boolean>('suggestWidgetVisible'));
+			const isClose = (e.keyCode === KeyCode.Escape && !isSuggestOpen) || (e.keyCode === KeyCode.Enter && (e.metaKey || e.ctrlKey));
+			if (isClose) {
+				e.preventDefault();
+				e.stopPropagation();
+				onClose();
+			}
+		}));
+		return {
+			focus: () => editor.focus(),
+			destroy: () => disposables.dispose(),
+		};
+	}
+
+	override clearInput(): void {
+		this.inputDisposables.clear();
+		super.clearInput();
+	}
+
+	override focus(): void {
+		super.focus();
+		this.canvas?.root.focus({ preventScroll: true });
+	}
+
+	override layout(dimension: Dimension): void {
+		if (this.container) {
+			this.container.style.width = `${dimension.width}px`;
+			this.container.style.height = `${dimension.height}px`;
+		}
+	}
+}
+
+/** Replace the document's text with `text` as one undo step, touching only the part that changed. */
+function replaceText(model: ITextModel, text: string) {
+	const before = model.getValue();
+	if (before === text) {
+		return;
+	}
+	const change = changedRegion(before, text);
+	model.pushStackElement();
+	model.pushEditOperations(null, [{ range: rangeOfOffsets(before, change.start, change.end, model), text: change.text }], () => null);
+	model.pushStackElement();
+}
+
+function changedRegion(before: string, after: string): { start: number; end: number; text: string } {
+	let start = 0;
+	const shorter = Math.min(before.length, after.length);
+	while (start < shorter && before.charCodeAt(start) === after.charCodeAt(start)) {
+		start++;
+	}
+	let fromEnd = 0;
+	while (fromEnd < shorter - start && before.charCodeAt(before.length - 1 - fromEnd) === after.charCodeAt(after.length - 1 - fromEnd)) {
+		fromEnd++;
+	}
+	return { start, end: before.length - fromEnd, text: after.slice(start, after.length - fromEnd) };
+}
+
+function rangeOfOffsets(text: string, start: number, end: number, model?: ITextModel): Range {
+	if (model) {
+		return Range.fromPositions(model.getPositionAt(start), model.getPositionAt(end));
+	}
+	const positionAt = (offset: number) => {
+		const before = text.slice(0, offset);
+		const lineNumber = before.split('\n').length;
+		return { lineNumber, column: offset - before.lastIndexOf('\n') };
+	};
+	return Range.fromPositions(positionAt(start), positionAt(end));
+}

@@ -326,6 +326,9 @@ import './contrib/customEditor/browser/customEditor.contribution.js';
 // Media Preview
 import './contrib/mediaPreview/browser/mediaPreview.contribution.js';
 
+// Code Canvas: TypeScript files as an editable diagram
+import './contrib/codeCanvas/browser/codeCanvas.contribution.js';
+
 // External Uri Opener
 import './contrib/externalUriOpener/common/externalUriOpener.contribution.js';
 
