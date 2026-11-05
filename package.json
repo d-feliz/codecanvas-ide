@@ -109,6 +109,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
+    "@codecanvas/engine": "link:../codecanvas/packages/engine",
     "@devcontainers/cli": "0.88.0",
     "@github/copilot-sdk": "1.0.29-preview.8",
     "@hpke/core": "^1.9.0",

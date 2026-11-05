@@ -30,6 +30,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.82.0
         version: 0.82.0(zod@4.4.3)
+      '@codecanvas/engine':
+        specifier: link:../codecanvas/packages/engine
+        version: link:../codecanvas/packages/engine
       '@devcontainers/cli':
         specifier: 0.88.0
         version: 0.88.0
