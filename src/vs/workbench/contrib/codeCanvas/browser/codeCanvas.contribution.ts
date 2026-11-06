@@ -25,7 +25,8 @@ import { IEditorService } from '../../../services/editor/common/editorService.js
 import { Schemas } from '../../../../base/common/network.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { Extensions as ConfigurationExtensions, IConfigurationRegistry } from '../../../../platform/configuration/common/configurationRegistry.js';
-import { CODE_CANVAS_DEFAULT_SETTING, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
+import { Extensions as WorkbenchConfigurationExtensions, IConfigurationMigrationRegistry } from '../../../common/configuration.js';
+import { CODE_CANVAS_DEFAULT_SETTING, CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
 import { CodeCanvasEditor } from './codeCanvasEditor.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
 import { CodeCanvasProjectService, ICodeCanvasProjectService } from './codeCanvasProjects.js';
@@ -40,10 +41,15 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration).regis
 		[CODE_CANVAS_DEFAULT_SETTING]: {
 			type: 'boolean',
 			default: true,
-			markdownDescription: localize('codeCanvas.openAsCanvasSetting', "Open TypeScript files as a canvas. When off, they open as text and the canvas is in **Open With…** and the editor title bar."),
+			markdownDescription: localize('codeCanvas.openAsCanvasSetting', "Open TypeScript and JavaScript files as a canvas. When off, they open as text and the canvas is in **Open With…** and the editor title bar."),
 		},
 	},
 });
+
+Registry.as<IConfigurationMigrationRegistry>(WorkbenchConfigurationExtensions.ConfigurationMigration).registerConfigurationMigrations([{
+	key: CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT,
+	migrateFn: value => [[CODE_CANVAS_DEFAULT_SETTING, { value }], [CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT, { value: undefined }]],
+}]);
 
 Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane).registerEditorPane(
 	EditorPaneDescriptor.create(CodeCanvasEditor, CodeCanvasEditor.ID, localize('codeCanvasEditor', "Code Canvas")),
@@ -67,7 +73,7 @@ class CodeCanvasEditorInputSerializer implements IEditorSerializer {
 Registry.as<IEditorFactoryRegistry>(EditorExtensions.EditorFactory).registerEditorSerializer(CodeCanvasEditorInput.ID, CodeCanvasEditorInputSerializer);
 
 /**
- * TypeScript files open as a canvas by default (the setting turns that off, leaving the canvas in
+ * TypeScript and JavaScript files open as a canvas by default (the setting turns that off, leaving the canvas in
  * "Open With…"). Diffs, and files that aren't on disk (e.g. a git version), keep the text editor.
  */
 class CodeCanvasEditorResolverContribution extends Disposable implements IWorkbenchContribution {
@@ -100,13 +106,17 @@ class CodeCanvasEditorResolverContribution extends Disposable implements IWorkbe
 				detail: DEFAULT_EDITOR_ASSOCIATION.providerDisplayName,
 				priority: isDefault ? RegisteredEditorPriority.default : RegisteredEditorPriority.option,
 			},
-			{ canSupportResource: resource => resource.scheme === Schemas.file || resource.scheme === Schemas.vscodeRemote },
+			{ canSupportResource: resource => isOnDisk(resource) && !isMinified(resource) },
 			{
 				createEditorInput: ({ resource, options }) => ({ editor: this.instantiationService.createInstance(CodeCanvasEditorInput, resource), options }),
 			}
 		);
 	}
 }
+const isOnDisk = (resource: URI) => resource.scheme === Schemas.file || resource.scheme === Schemas.vscodeRemote;
+/** A minified bundle is one long line of code: nothing to see as a canvas. */
+const isMinified = (resource: URI) => /\.min\.[cm]?js$/.test(resource.path);
+
 registerWorkbenchContribution2(CodeCanvasEditorResolverContribution.ID, CodeCanvasEditorResolverContribution, WorkbenchPhase.BlockStartup);
 
 const isCanvasFile = ContextKeyExpr.or(...CODE_CANVAS_FILE_EXTENSIONS.map(extension => ResourceContextKey.Extension.isEqualTo(extension)));

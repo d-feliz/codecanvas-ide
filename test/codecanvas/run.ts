@@ -28,12 +28,28 @@ function prepareProject() {
 	fs.writeFileSync(path.join(project, 'tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true, paths: { '@shop/*': ['./*'] } } }, null, 2));
 	fs.writeFileSync(path.join(project, 'checkout.ts'), [
 		`import { applyDiscount } from '@shop/pricing';`,
+		`import { formatReceipt } from '@shop/receipts';`,
 		``,
 		`export function checkoutTotal(amount: number): number {`,
 		`  return applyDiscount(amount, null);`,
 		`}`,
 		``,
+		`export function checkoutReceipt(amount: number): string {`,
+		`  return formatReceipt(checkoutTotal(amount));`,
+		`}`,
+		``,
 	].join('\n'));
+	// A workspace package with its own config and alias, imported by name. Package managers link it into
+	// node_modules (VS Code's TypeScript follows that); the canvas finds it from its package.json.
+	const receipts = path.join(project, 'packages', 'receipts');
+	fs.mkdirSync(path.join(receipts, 'src'), { recursive: true });
+	fs.writeFileSync(path.join(receipts, 'package.json'), JSON.stringify({ name: '@shop/receipts', types: './src/index.ts' }, null, 2));
+	fs.writeFileSync(path.join(receipts, 'tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true, paths: { '@/*': ['./src/*'] } } }, null, 2));
+	fs.writeFileSync(path.join(receipts, 'src', 'index.ts'), `export { formatReceipt } from '@/receiptFormat';\n`);
+	fs.writeFileSync(path.join(receipts, 'src', 'receiptFormat.ts'), `export function formatReceipt(total: number): string {\n  return 'Total: ' + total.toFixed(2);\n}\n`);
+	fs.mkdirSync(path.join(project, 'node_modules', '@shop'), { recursive: true });
+	fs.symlinkSync(path.join('..', '..', 'packages', 'receipts'), path.join(project, 'node_modules', '@shop', 'receipts'));
+	fs.writeFileSync(path.join(project, '.gitignore'), 'node_modules\n');
 	// A git repo with one commit, so "Show Changes" has a committed version to compare with.
 	const git = (...gitArgs: string[]) => execFileSync('git', ['-c', 'user.name=CodeCanvas e2e', '-c', 'user.email=e2e@codecanvas.invalid', ...gitArgs], { cwd: project, stdio: 'ignore' });
 	const discounts = path.join(project, 'discounts.ts');

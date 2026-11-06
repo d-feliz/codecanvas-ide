@@ -7,7 +7,7 @@ import { RunOnceScheduler } from '../../../../base/common/async.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { Disposable, DisposableMap, DisposableStore } from '../../../../base/common/lifecycle.js';
 import { parse as parseJsonWithComments } from '../../../../base/common/json.js';
-import { dirname, extname, isEqual, isEqualOrParent, joinPath, relativePath } from '../../../../base/common/resources.js';
+import { basename, dirname, extname, isEqual, isEqualOrParent, joinPath, relativePath } from '../../../../base/common/resources.js';
 import { URI } from '../../../../base/common/uri.js';
 import { ITextModel } from '../../../../editor/common/model.js';
 import { IModelService } from '../../../../editor/common/services/model.js';
@@ -20,17 +20,41 @@ import { CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_LAYO
 import { FileAccess } from '../../../../base/common/network.js';
 import { WebWorkerDescriptor } from '../../../../platform/webWorker/browser/webWorkerDescriptor.js';
 import { IWebWorkerService } from '../../../../platform/webWorker/browser/webWorkerService.js';
-import { loadEngine, RemoteProject } from './codeCanvasEngine.js';
+import { ConfigFile, loadEngine, RemoteProject } from './codeCanvasEngine.js';
 import type { CodeCanvasProjectWorker } from './codeCanvasProjectWorker.js';
 
 /** Folders that never hold the project's own source. */
 const SKIPPED_FOLDERS = new Set(['node_modules', '.git', 'out', 'dist', 'build', '.build', 'coverage', CODE_CANVAS_LAYOUT_FOLDER]);
 const MAX_PROJECT_FILES = 10000;
-/** TypeScript settings at the folder's root, in the order TypeScript's own tools pick them. */
-const CONFIG_FILE_NAMES = ['tsconfig.json', 'jsconfig.json'];
+/** TypeScript settings. In a monorepo every package can have its own (`tsconfig.app.json` in Vite apps). */
+const CONFIG_FILE_PATTERN = '**/{tsconfig.json,tsconfig.*.json,jsconfig.json}';
+/** Package manifests: workspace packages import each other by the names in them. */
+const PACKAGE_FILE_PATTERN = '**/package.json';
+const MAX_SETTINGS_FILES = 1000;
 const MAX_EXTENDS_DEPTH = 5;
 
-/** All TypeScript files of a folder in one engine `Project`, kept in sync with open documents and the disk. */
+const isSettingsFileName = (name: string) => name === 'package.json' || name === 'jsconfig.json' || /^tsconfig(\..+)?\.json$/.test(name);
+
+/** Configs by folder, `tsconfig.json` first in each: it wins over a `jsconfig.json` or `tsconfig.app.json` next to it. */
+function byFolderWithTsconfigFirst(a: ConfigFile, b: ConfigFile): number {
+	const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/') + 1);
+	const isTsconfig = (path: string) => path.slice(path.lastIndexOf('/') + 1) === 'tsconfig.json';
+	return folderOf(a.path).localeCompare(folderOf(b.path)) || Number(isTsconfig(b.path)) - Number(isTsconfig(a.path)) || a.path.localeCompare(b.path);
+}
+
+/** VS Code's file search: fast, and it leaves out what .gitignore and the exclude settings leave out. */
+async function searchFolder(instantiationService: IInstantiationService, searchService: ISearchService, folder: URI, includePattern: string, maxResults: number): Promise<{ resources: URI[]; limitHit: boolean }> {
+	const query = instantiationService.createInstance(QueryBuilder).file([folder], {
+		_reason: 'codeCanvasProject',
+		includePattern,
+		excludePattern: [{ pattern: [...SKIPPED_FOLDERS].map(name => `**/${name}/**`) }],
+		maxResults,
+	});
+	const result = await searchService.fileSearch(query);
+	return { resources: result.results.map(match => match.resource), limitHit: !!result.limitHit };
+}
+
+/** All TypeScript and JavaScript files of a folder in one engine `Project`, kept in sync with open documents and the disk. */
 export class CodeCanvasFolderProject extends Disposable {
 
 	private readonly _onDidChangeOtherFiles = this._register(new Emitter<void>());
@@ -39,15 +63,18 @@ export class CodeCanvasFolderProject extends Disposable {
 
 	private readonly notifySoon = this._register(new RunOnceScheduler(() => this._onDidChangeOtherFiles.fire(), 300));
 	private readonly modelListeners = this._register(new DisposableMap<string>());
-	private readonly reloadConfigSoon = this._register(new RunOnceScheduler(() => void this.loadConfigFile(), 300));
-	/** The config files in use (the root one and those it extends), plus the root names not there yet. */
-	private watchedConfigFiles: URI[] = [];
+	private readonly reloadWorkspaceSoon = this._register(new RunOnceScheduler(() => void this.loadWorkspace(), 300));
+	/** Configs that the folder's configs extend, which can have any name. */
+	private extendedConfigFiles: URI[] = [];
 
 	constructor(
 		readonly folder: URI,
 		readonly project: RemoteProject,
 		@IFileService private readonly fileService: IFileService,
 		@IModelService private readonly modelService: IModelService,
+		@IInstantiationService private readonly instantiationService: IInstantiationService,
+		@ISearchService private readonly searchService: ISearchService,
+		@ILogService private readonly logService: ILogService,
 	) {
 		super();
 		for (const model of this.modelService.getModels()) {
@@ -56,9 +83,9 @@ export class CodeCanvasFolderProject extends Disposable {
 		this._register(this.modelService.onModelAdded(model => this.trackModel(model)));
 		this._register(this.modelService.onModelRemoved(model => this.modelListeners.deleteAndDispose(model.uri.toString())));
 		this._register(this.fileService.onDidFilesChange(e => {
-			const isConfigChange = [...e.rawAdded, ...e.rawUpdated, ...e.rawDeleted].some(resource => this.watchedConfigFiles.some(config => isEqual(config, resource)));
-			if (isConfigChange) {
-				this.reloadConfigSoon.schedule();
+			const isSettingsChange = [...e.rawAdded, ...e.rawUpdated, ...e.rawDeleted].some(resource => this.isSettingsFile(resource));
+			if (isSettingsChange) {
+				this.reloadWorkspaceSoon.schedule();
 			}
 			// Files open in an editor follow their document instead (`trackModel`).
 			const isClosedProjectFile = (resource: URI) => !!this.projectPath(resource) && !this.modelService.getModel(resource);
@@ -72,44 +99,74 @@ export class CodeCanvasFolderProject extends Disposable {
 		}));
 	}
 
-	/** Give the project the folder's tsconfig.json (or jsconfig.json): path aliases decide where imports point. */
-	async loadConfigFile(): Promise<void> {
-		const rootConfigFiles = CONFIG_FILE_NAMES.map(name => joinPath(this.folder, name));
-		for (const configResource of rootConfigFiles) {
-			const text = await this.readText(configResource);
-			if (text === undefined) {
-				continue;
+	/**
+	 * Give the project the folder's config files and package manifests: path aliases and package names
+	 * decide where imports point. In a monorepo each package's files use that package's config.
+	 */
+	async loadWorkspace(): Promise<void> {
+		const [configResources, packageResources] = await Promise.all([this.findSettingsFiles(CONFIG_FILE_PATTERN), this.findSettingsFiles(PACKAGE_FILE_PATTERN)]);
+		const extendedConfigFiles: URI[] = [];
+		const configFiles = (await Promise.all(configResources.map(resource => this.readConfigFile(resource, extendedConfigFiles)))).filter(config => !!config);
+		const packageFiles: Record<string, string> = {};
+		for (const resource of packageResources) {
+			const text = await this.readText(resource);
+			if (text !== undefined) {
+				packageFiles[relativePath(this.folder, resource)!] = text;
 			}
-			const extendedFiles: Record<string, string> = {};
-			const usedConfigFiles = [configResource];
-			const readExtendedConfigs = async (resource: URI, configText: string, depth: number) => {
-				const extendsValue = (parseJsonWithComments(configText) as { extends?: unknown } | undefined)?.extends;
-				const extendedNames = typeof extendsValue === 'string' ? [extendsValue] : Array.isArray(extendsValue) ? extendsValue.filter(name => typeof name === 'string') : [];
-				// Package configs (`@tsconfig/node20`) live in node_modules, which the project doesn't read.
-				const relativeNames = extendedNames.filter(name => name.startsWith('.'));
-				for (const name of relativeNames) {
-					const extendedResource = joinPath(dirname(resource), name.endsWith('.json') ? name : `${name}.json`);
-					const path = isEqualOrParent(extendedResource, this.folder) ? relativePath(this.folder, extendedResource) : undefined;
-					const isReadAlready = !!path && extendedFiles[path] !== undefined;
-					const extendedText = path && !isReadAlready ? await this.readText(extendedResource) : undefined;
-					if (path && extendedText !== undefined) {
-						extendedFiles[path] = extendedText;
-						usedConfigFiles.push(extendedResource);
-						if (depth < MAX_EXTENDS_DEPTH) {
-							await readExtendedConfigs(extendedResource, extendedText, depth + 1);
-						}
+		}
+		configFiles.sort(byFolderWithTsconfigFirst);
+		const hasSettings = configFiles.length > 0 || Object.keys(packageFiles).length > 0;
+		this.project.setWorkspace(hasSettings ? { configFiles, packageFiles } : null);
+		this.extendedConfigFiles = extendedConfigFiles;
+		this.notifySoon.schedule();
+	}
+
+	private isSettingsFile(resource: URI): boolean {
+		const isInFolder = isEqualOrParent(resource, this.folder);
+		const path = isInFolder ? relativePath(this.folder, resource) : undefined;
+		const isInSkippedFolder = !!path && path.split('/').some(part => SKIPPED_FOLDERS.has(part));
+		const isFolderSettingsFile = !!path && !isInSkippedFolder && isSettingsFileName(basename(resource));
+		return isFolderSettingsFile || this.extendedConfigFiles.some(extended => isEqual(extended, resource));
+	}
+
+	private async findSettingsFiles(includePattern: string): Promise<URI[]> {
+		try {
+			return (await searchFolder(this.instantiationService, this.searchService, this.folder, includePattern, MAX_SETTINGS_FILES)).resources;
+		} catch (error) {
+			this.logService.warn('[codeCanvas] file search failed, using the settings at the folder root only', error);
+			const rootNames = includePattern === PACKAGE_FILE_PATTERN ? ['package.json'] : ['tsconfig.json', 'jsconfig.json'];
+			return rootNames.map(name => joinPath(this.folder, name));
+		}
+	}
+
+	/** A config file with the configs it extends (relative `extends` only), or undefined if it can't be read. */
+	private async readConfigFile(configResource: URI, extendedConfigFiles: URI[]): Promise<ConfigFile | undefined> {
+		const text = await this.readText(configResource);
+		if (text === undefined) {
+			return undefined;
+		}
+		const extendedFiles: Record<string, string> = {};
+		const readExtendedConfigs = async (resource: URI, configText: string, depth: number) => {
+			const extendsValue = (parseJsonWithComments(configText) as { extends?: unknown } | undefined)?.extends;
+			const extendedNames = typeof extendsValue === 'string' ? [extendsValue] : Array.isArray(extendsValue) ? extendsValue.filter(name => typeof name === 'string') : [];
+			// Package configs (`@tsconfig/node20`) live in node_modules, which the project doesn't read.
+			const relativeNames = extendedNames.filter(name => name.startsWith('.'));
+			for (const name of relativeNames) {
+				const extendedResource = joinPath(dirname(resource), name.endsWith('.json') ? name : `${name}.json`);
+				const path = isEqualOrParent(extendedResource, this.folder) ? relativePath(this.folder, extendedResource) : undefined;
+				const isReadAlready = !!path && extendedFiles[path] !== undefined;
+				const extendedText = path && !isReadAlready ? await this.readText(extendedResource) : undefined;
+				if (path && extendedText !== undefined) {
+					extendedFiles[path] = extendedText;
+					extendedConfigFiles.push(extendedResource);
+					if (depth < MAX_EXTENDS_DEPTH) {
+						await readExtendedConfigs(extendedResource, extendedText, depth + 1);
 					}
 				}
-			};
-			await readExtendedConfigs(configResource, text, 1);
-			this.project.setConfigFile({ path: relativePath(this.folder, configResource)!, text, extendedFiles });
-			this.watchedConfigFiles = [...rootConfigFiles, ...usedConfigFiles];
-			this.notifySoon.schedule();
-			return;
-		}
-		this.project.setConfigFile(null);
-		this.watchedConfigFiles = rootConfigFiles;
-		this.notifySoon.schedule();
+			}
+		};
+		await readExtendedConfigs(configResource, text, 1);
+		return { path: relativePath(this.folder, configResource)!, text, extendedFiles };
 	}
 
 	private async readText(resource: URI): Promise<string | undefined> {
@@ -120,7 +177,7 @@ export class CodeCanvasFolderProject extends Disposable {
 		}
 	}
 
-	/** Path of a TypeScript file of this folder, relative to it (`src/cart.ts`), or undefined. */
+	/** Path of a TypeScript or JavaScript file of this folder, relative to it (`src/cart.ts`), or undefined. */
 	projectPath(resource: URI): string | undefined {
 		const isProjectFile = CODE_CANVAS_FILE_EXTENSIONS.includes(extname(resource)) && isEqualOrParent(resource, this.folder);
 		if (!isProjectFile) {
@@ -203,7 +260,7 @@ export class CodeCanvasProjectService extends Disposable implements ICodeCanvasP
 		const project = new engine.RemoteProject((method, args) => worker.proxy.$call(method, args));
 		project.setFiles(files);
 		const folderProject = this.projects.add(this.instantiationService.createInstance(CodeCanvasFolderProject, folder, project));
-		await folderProject.loadConfigFile();
+		await folderProject.loadWorkspace();
 		return folderProject;
 	}
 
@@ -220,20 +277,13 @@ export class CodeCanvasProjectService extends Disposable implements ICodeCanvasP
 		return files;
 	}
 
-	/** VS Code's file search: fast, and it leaves out what .gitignore and the exclude settings leave out. */
 	private async listSourceFiles(folder: URI): Promise<URI[]> {
 		try {
-			const query = this.instantiationService.createInstance(QueryBuilder).file([folder], {
-				_reason: 'codeCanvasProject',
-				includePattern: CODE_CANVAS_FILE_PATTERN,
-				excludePattern: [{ pattern: [...SKIPPED_FOLDERS].map(name => `**/${name}/**`) }],
-				maxResults: MAX_PROJECT_FILES,
-			});
-			const result = await this.searchService.fileSearch(query);
-			if (result.limitHit) {
-				this.logService.warn(`[codeCanvas] ${folder.fsPath} has more than ${MAX_PROJECT_FILES} TypeScript files; references only cover ${MAX_PROJECT_FILES} of them.`);
+			const { resources, limitHit } = await searchFolder(this.instantiationService, this.searchService, folder, CODE_CANVAS_FILE_PATTERN, MAX_PROJECT_FILES);
+			if (limitHit) {
+				this.logService.warn(`[codeCanvas] ${folder.fsPath} has more than ${MAX_PROJECT_FILES} TypeScript and JavaScript files; references only cover ${MAX_PROJECT_FILES} of them.`);
 			}
-			return result.results.map(match => match.resource);
+			return resources;
 		} catch (error) {
 			this.logService.warn('[codeCanvas] file search failed, listing the folder instead', error);
 			return this.walkSourceFiles(folder);

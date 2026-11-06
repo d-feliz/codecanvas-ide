@@ -18,7 +18,7 @@ import { ITextFileService } from '../../../services/textfile/common/textfiles.js
 import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_INPUT_ID } from '../common/codeCanvas.js';
 
 /**
- * A TypeScript file shown as a canvas. The canvas edits the same text document as the text
+ * A TypeScript or JavaScript file shown as a canvas. The canvas edits the same text document as the text
  * editor, so unsaved changes, saving and undo are shared with it.
  */
 export class CodeCanvasEditorInput extends AbstractResourceEditorInput {

@@ -52,7 +52,7 @@ import { ICodeCanvasProjectService } from './codeCanvasProjects.js';
 const blockToRevealByResource = new Map<string, string>();
 
 /**
- * Shows a TypeScript file as the CodeCanvas diagram. Text stays the source of truth: the canvas
+ * Shows a TypeScript or JavaScript file as the CodeCanvas diagram. Text stays the source of truth: the canvas
  * edits the file's text document, and every change to the document re-renders the canvas.
  */
 export class CodeCanvasEditor extends EditorPane {

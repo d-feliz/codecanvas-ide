@@ -2,8 +2,9 @@
 
 This is the desktop app of [CodeCanvas](https://github.com/d-feliz/codecanvas): a fork of
 [Code-OSS](https://github.com/microsoft/vscode) (the open-source code of VS Code) where TypeScript
-files can also be edited as a zoomable diagram. The canvas engine lives in the CodeCanvas repo; this
-fork embeds it as a built-in editor ("Open as Canvas" on any TypeScript file).
+and JavaScript files can also be edited as a zoomable diagram. The canvas engine lives in the
+CodeCanvas repo; this fork embeds it as a built-in editor ("Open as Canvas" on any TypeScript or
+JavaScript file).
 
 ## Changes from upstream
 
@@ -11,8 +12,9 @@ Kept small on purpose, so merging new VS Code versions stays easy:
 
 - `product.json`: name, app IDs, data folders and URL protocol are CodeCanvas's own, so it installs
   and keeps settings separately from VS Code and Code - OSS (settings go in `~/.codecanvas-ide`).
-- `src/vs/workbench/contrib/codeCanvas/`: the canvas editor. TypeScript files on disk open as a canvas
-  ("Open as Text" in the title bar switches; the setting `codeCanvas.openTypeScriptFilesAsCanvas`
+- `src/vs/workbench/contrib/codeCanvas/`: the canvas editor. TypeScript and JavaScript files on disk
+  open as a canvas, except minified `*.min.js` bundles ("Open as Text" in the title bar switches; the
+  setting `codeCanvas.openFilesAsCanvas`, formerly `codeCanvas.openTypeScriptFilesAsCanvas`,
   turns the default off, leaving "Open as Canvas" and Open With…). Opening a file at a position
   (Go to Definition, search results, Problems) selects the block there. The canvas edits the file's text document, so unsaved
   changes, save and undo are shared with the text editor. Blocks are edited in Monaco on the file's
@@ -20,9 +22,11 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   Errors on blocks come from Problems (the TypeScript extension). Usage links between blocks and
   renames are computed by the engine in a worker (`codeCanvasProjectWorkerMain`), so the window only
   parses the open file. A rename that changes several files is one workspace edit. The project
-  covers the folder's TypeScript files (found with VS Code's file search, so `.gitignore` and the
-  exclude settings apply; up to 10,000) and follows its `tsconfig.json` or `jsconfig.json` (path
-  aliases, `baseUrl`, relative `extends`). Block positions are saved in `.codecanvas/` in the
+  covers the folder's TypeScript and JavaScript files (found with VS Code's file search, so `.gitignore` and the
+  exclude settings apply; up to 10,000) and follows its config files (`tsconfig.json`,
+  `tsconfig.*.json`, `jsconfig.json`: path aliases, `baseUrl`, relative `extends`). In a monorepo each
+  config gets its own program and a file uses the nearest config that includes it; packages that
+  import each other by name are found from their `package.json`. Block positions are saved in `.codecanvas/` in the
   workspace folder once you arrange something; until then (when you only open a file) they stay in
   VS Code's workspace storage, so the repo gets no new files.
   "Show Changes" (title bar) compares the file with its committed version from source control (the
@@ -76,8 +80,9 @@ Notes:
   `--user-data-dir` fails with `listen EINVAL`.
 - To try engine changes before publishing them, link a local checkout of the CodeCanvas repo:
   `pnpm link ../codecanvas/packages/engine` after `npm run build -w @codecanvas-ide/engine` there.
-  Rebuild the engine after each change and reload the window. `pnpm ci` goes back to the published
-  version.
+  Rebuild the engine after each change and reload the window. The link is an override in
+  `pnpm-workspace.yaml` and `pnpm-lock.yaml`; don't commit it. To go back to the published version:
+  `git checkout pnpm-workspace.yaml pnpm-lock.yaml && pnpm ci`.
 - The install log shows build errors for an old `fsevents` under `glob-watcher`. It's an optional
   dependency of gulp's file watcher; the build doesn't need it.
 

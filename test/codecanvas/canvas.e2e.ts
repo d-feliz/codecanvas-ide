@@ -175,6 +175,27 @@ const assert = (condition, message) => {
 	const pricingRefs = await page.locator(`${canvas} .cc-refs`).innerText();
 	assert(pricingRefs.includes('checkout.ts ›'), 'imports through a tsconfig.json path alias are linked');
 
+	// a workspace package, imported by name and re-exported through its index.ts with its own alias
+	await openFile('receiptFormat.ts');
+	await page.waitForSelector(`${canvas} .cc-block[data-id="formatReceipt"]`, { timeout: 15000 });
+	await selectBlock('formatReceipt');
+	await page.locator(`${canvas} .cc-bar button:has-text("Refs")`).click();
+	const packageRefsLinked = await page.waitForFunction(selector => document.querySelector(selector)?.textContent?.includes('checkout.ts'), `${canvas} .cc-refs`, { timeout: 10000 }).then(() => true, () => false);
+	assert(packageRefsLinked, 'a block of a workspace package lists its usages in the files that import the package by name');
+
+	// JavaScript files open as a canvas too, linked to the TypeScript files they import
+	await openFile('shipping.js');
+	const shippingOpensAsCanvas = await page.waitForSelector(`${canvas} .cc-block[data-id="shippingCost"]`, { timeout: 15000 }).then(() => true, () => false);
+	assert(shippingOpensAsCanvas, 'a JavaScript file opens as a canvas');
+	await selectBlock('shippingCost');
+	await page.locator(`${canvas} .cc-bar button:has-text("Refs")`).click();
+	const javaScriptRefsLinked = await page.waitForFunction(selector => document.querySelector(selector)?.textContent?.includes('math.ts'), `${canvas} .cc-refs`, { timeout: 10000 }).then(() => true, () => false);
+	assert(javaScriptRefsLinked, 'and its usages link to blocks in TypeScript files');
+
+	await openFile('pricing.ts');
+	await page.waitForSelector(`${canvas} .cc-block[data-id="applyDiscount"]`, { timeout: 15000 });
+	await selectBlock('applyDiscount');
+
 	// rename across files
 	await page.keyboard.press('F2');
 	await page.waitForSelector(`${canvas} .cc-rename`);
