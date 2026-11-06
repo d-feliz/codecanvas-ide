@@ -243,7 +243,7 @@ const assert = (condition, message) => {
 	const conflictEditorText = (await page.locator(`${canvas} .cc-editor .view-lines`).innerText()).replace(/\u00a0/g, ' ');
 	assert(conflictEditorText.includes('<<<<<<<') && conflictEditorText.includes('>>>>>>> sale'), 'Edit shows the conflict markers');
 	const hasAcceptLenses = await page.waitForSelector(`${canvas} .cc-editor .codelens-decoration a:has-text("Accept")`, { timeout: 15000 }).then(() => true, () => false);
-	assert(hasAcceptLenses, "VS Code's Accept Current / Incoming links show in the block editor");
+	assert(hasAcceptLenses, 'the block editor shows the Accept Current / Incoming links of VS Code');
 	await page.screenshot({ path: path.join(screenshots, 'canvas-conflict-editor.png') });
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(200);
@@ -251,7 +251,7 @@ const assert = (condition, message) => {
 	await page.locator(`${canvas} .cc-bar button:has-text("Keep incoming")`).click();
 	await page.waitForTimeout(500);
 	assert(await page.locator(`${canvas} .cc-banner[hidden]`).count() === 1 && await page.locator(`${canvas} .cc-conflict`).count() === 0, 'Keep incoming resolves the conflict');
-	assert(/amount \* 0\.8/.test(await block('seasonalDiscount').locator('.cc-prev').innerText()), "the block now has the incoming side's code");
+	assert(/amount \* 0\.8/.test(await block('seasonalDiscount').locator('.cc-prev').innerText()), 'the block now has the code of the incoming side');
 
 	console.log('page errors', JSON.stringify(errors));
 	await browser.close().catch(() => { });
