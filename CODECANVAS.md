@@ -37,6 +37,8 @@ Kept small on purpose, so merging new VS Code versions stays easy:
 - `eslint.config.js`, `build/hygiene.ts`: accept the CodeCanvas copyright header on the fork's own
   files, allow the engine import in workbench contributions, and give `test/codecanvas` import rules.
 - `build/lib/i18n.resources.json`: the canvas's strings.
+- `resources/darwin/code.icns`, `resources/linux/code.png`, `resources/win32/code.ico`: the CodeCanvas
+  icon, rendered from `build/codecanvas/icon.svg` with `node build/codecanvas/make-icons.ts` (macOS).
 - This file.
 
 ## Build and run (macOS)
