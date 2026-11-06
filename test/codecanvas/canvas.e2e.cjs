@@ -3,16 +3,16 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-// End-to-end check of the canvas editor in a running CodeCanvas window. Start the app first:
-//   ./scripts/code.sh --user-data-dir .build/dev/user --extensions-dir .build/dev/ext \
-//     --remote-debugging-port=9333 --skip-welcome --disable-workspace-trust .build/dev/sample-project
-// where .build/dev/sample-project is a copy of codecanvas/apps/playground/src/sample. Then:
-//   node test/codecanvas/canvas.e2e.cjs [screenshot folder]
+// End-to-end check of the canvas editor in a running CodeCanvas window, on the project that
+// run.cjs prepares (the CodeCanvas sample, plus a tsconfig.json path alias). Run it through run.cjs.
 const { chromium } = require('playwright');
 const os = require('os');
 const path = require('path');
 
 const screenshots = process.argv[2] ?? os.tmpdir();
+const projectFolder = process.argv[3];
+const fs = require('fs');
+const cartLayoutFile = projectFolder && path.join(projectFolder, '.codecanvas', 'cart.ts.json');
 const assert = (condition, message) => {
 	console.log(condition ? 'ok:' : 'FAIL:', message);
 	if (!condition) {
@@ -83,6 +83,19 @@ const assert = (condition, message) => {
 	assert(await page.locator(`${canvas} .cc-block`).count() >= 10, 'canvas shows the file as blocks');
 	assert(await page.locator(`${canvas} .cc-edge`).count() > 0, 'and usage lines');
 	assert(await page.locator('.editor-actions [aria-label*="Open as Text"]').count() === 1, 'canvas shows the Open as Text button');
+	await page.waitForTimeout(800);
+	assert(!fs.existsSync(path.join(projectFolder, '.codecanvas')), 'opening a canvas adds no files to the repo');
+	const isEmptyBox = await block('isEmpty').boundingBox();
+	await page.mouse.move(isEmptyBox.x + 30, isEmptyBox.y + 10);
+	await page.mouse.down();
+	for (let step = 1; step <= 8; step++) {
+		await page.mouse.move(isEmptyBox.x + 30 + step * 10, isEmptyBox.y + 10 + step * 8);
+		await page.waitForTimeout(16);
+	}
+	await page.mouse.up();
+	await page.waitForTimeout(1000);
+	const savedLayout = fs.existsSync(cartLayoutFile) ? JSON.parse(fs.readFileSync(cartLayoutFile, 'utf8')) : undefined;
+	assert(savedLayout?.blocks?.isEmpty, 'moving a block saves the layout to .codecanvas/');
 	await page.screenshot({ path: path.join(screenshots, 'canvas-opened.png') });
 	const debugTargets = await (await fetch('http://127.0.0.1:9333/json')).json();
 	assert(debugTargets.some(target => target.type === 'worker' && target.title === 'CodeCanvasProjectWorker'), 'usage links are resolved in a worker');
@@ -144,6 +157,9 @@ const assert = (condition, message) => {
 	await page.locator(`${canvas} .cc-refs button:has-text("applyDiscount")`).click();
 	await page.waitForSelector(`${canvas} .cc-block[data-id="applyDiscount"].cc-sel`, { timeout: 15000 });
 	assert((await activeTab().innerText()).includes('pricing.ts'), 'clicking it opens that file as a canvas, with the block selected');
+	await page.locator(`${canvas} .cc-bar button:has-text("Refs")`).click();
+	const pricingRefs = await page.locator(`${canvas} .cc-refs`).innerText();
+	assert(pricingRefs.includes('checkout.ts ›'), 'imports through a tsconfig.json path alias are linked');
 
 	// rename across files
 	await page.keyboard.press('F2');

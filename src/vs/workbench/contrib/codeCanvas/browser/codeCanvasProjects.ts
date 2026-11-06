@@ -6,14 +6,17 @@
 import { RunOnceScheduler } from '../../../../base/common/async.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { Disposable, DisposableMap, DisposableStore } from '../../../../base/common/lifecycle.js';
-import { extname, isEqualOrParent, relativePath } from '../../../../base/common/resources.js';
+import { parse as parseJsonWithComments } from '../../../../base/common/json.js';
+import { dirname, extname, isEqual, isEqualOrParent, joinPath, relativePath } from '../../../../base/common/resources.js';
 import { URI } from '../../../../base/common/uri.js';
 import { ITextModel } from '../../../../editor/common/model.js';
 import { IModelService } from '../../../../editor/common/services/model.js';
 import { IFileService, IFileStat } from '../../../../platform/files/common/files.js';
 import { createDecorator, IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
-import { CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_LAYOUT_FOLDER } from '../common/codeCanvas.js';
+import { ISearchService } from '../../../services/search/common/search.js';
+import { QueryBuilder } from '../../../services/search/common/queryBuilder.js';
+import { CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_LAYOUT_FOLDER } from '../common/codeCanvas.js';
 import { FileAccess } from '../../../../base/common/network.js';
 import { WebWorkerDescriptor } from '../../../../platform/webWorker/browser/webWorkerDescriptor.js';
 import { IWebWorkerService } from '../../../../platform/webWorker/browser/webWorkerService.js';
@@ -22,7 +25,10 @@ import type { CodeCanvasProjectWorker } from './codeCanvasProjectWorker.js';
 
 /** Folders that never hold the project's own source. */
 const SKIPPED_FOLDERS = new Set(['node_modules', '.git', 'out', 'dist', 'build', '.build', 'coverage', CODE_CANVAS_LAYOUT_FOLDER]);
-const MAX_PROJECT_FILES = 3000;
+const MAX_PROJECT_FILES = 10000;
+/** TypeScript settings at the folder's root, in the order TypeScript's own tools pick them. */
+const CONFIG_FILE_NAMES = ['tsconfig.json', 'jsconfig.json'];
+const MAX_EXTENDS_DEPTH = 5;
 
 /** All TypeScript files of a folder in one engine `Project`, kept in sync with open documents and the disk. */
 export class CodeCanvasFolderProject extends Disposable {
@@ -33,6 +39,9 @@ export class CodeCanvasFolderProject extends Disposable {
 
 	private readonly notifySoon = this._register(new RunOnceScheduler(() => this._onDidChangeOtherFiles.fire(), 300));
 	private readonly modelListeners = this._register(new DisposableMap<string>());
+	private readonly reloadConfigSoon = this._register(new RunOnceScheduler(() => void this.loadConfigFile(), 300));
+	/** The config files in use (the root one and those it extends), plus the root names not there yet. */
+	private watchedConfigFiles: URI[] = [];
 
 	constructor(
 		readonly folder: URI,
@@ -47,6 +56,10 @@ export class CodeCanvasFolderProject extends Disposable {
 		this._register(this.modelService.onModelAdded(model => this.trackModel(model)));
 		this._register(this.modelService.onModelRemoved(model => this.modelListeners.deleteAndDispose(model.uri.toString())));
 		this._register(this.fileService.onDidFilesChange(e => {
+			const isConfigChange = [...e.rawAdded, ...e.rawUpdated, ...e.rawDeleted].some(resource => this.watchedConfigFiles.some(config => isEqual(config, resource)));
+			if (isConfigChange) {
+				this.reloadConfigSoon.schedule();
+			}
 			// Files open in an editor follow their document instead (`trackModel`).
 			const isClosedProjectFile = (resource: URI) => !!this.projectPath(resource) && !this.modelService.getModel(resource);
 			for (const resource of e.rawDeleted.filter(isClosedProjectFile)) {
@@ -57,6 +70,53 @@ export class CodeCanvasFolderProject extends Disposable {
 				void this.reloadFromDisk(resource, this.projectPath(resource)!);
 			}
 		}));
+	}
+
+	/** Give the project the folder's tsconfig.json (or jsconfig.json): path aliases decide where imports point. */
+	async loadConfigFile(): Promise<void> {
+		const rootConfigFiles = CONFIG_FILE_NAMES.map(name => joinPath(this.folder, name));
+		for (const configResource of rootConfigFiles) {
+			const text = await this.readText(configResource);
+			if (text === undefined) {
+				continue;
+			}
+			const extendedFiles: Record<string, string> = {};
+			const usedConfigFiles = [configResource];
+			const readExtendedConfigs = async (resource: URI, configText: string, depth: number) => {
+				const extendsValue = (parseJsonWithComments(configText) as { extends?: unknown } | undefined)?.extends;
+				const extendedNames = typeof extendsValue === 'string' ? [extendsValue] : Array.isArray(extendsValue) ? extendsValue.filter(name => typeof name === 'string') : [];
+				// Package configs (`@tsconfig/node20`) live in node_modules, which the project doesn't read.
+				const relativeNames = extendedNames.filter(name => name.startsWith('.'));
+				for (const name of relativeNames) {
+					const extendedResource = joinPath(dirname(resource), name.endsWith('.json') ? name : `${name}.json`);
+					const path = isEqualOrParent(extendedResource, this.folder) ? relativePath(this.folder, extendedResource) : undefined;
+					const extendedText = path && !(path in extendedFiles) ? await this.readText(extendedResource) : undefined;
+					if (path && extendedText !== undefined) {
+						extendedFiles[path] = extendedText;
+						usedConfigFiles.push(extendedResource);
+						if (depth < MAX_EXTENDS_DEPTH) {
+							await readExtendedConfigs(extendedResource, extendedText, depth + 1);
+						}
+					}
+				}
+			};
+			await readExtendedConfigs(configResource, text, 1);
+			this.project.setConfigFile({ path: relativePath(this.folder, configResource)!, text, extendedFiles });
+			this.watchedConfigFiles = [...rootConfigFiles, ...usedConfigFiles];
+			this.notifySoon.schedule();
+			return;
+		}
+		this.project.setConfigFile(null);
+		this.watchedConfigFiles = rootConfigFiles;
+		this.notifySoon.schedule();
+	}
+
+	private async readText(resource: URI): Promise<string | undefined> {
+		try {
+			return (await this.fileService.readFile(resource)).value.toString();
+		} catch {
+			return undefined;
+		}
 	}
 
 	/** Path of a TypeScript file of this folder, relative to it (`src/cart.ts`), or undefined. */
@@ -116,6 +176,7 @@ export class CodeCanvasProjectService extends Disposable implements ICodeCanvasP
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@ILogService private readonly logService: ILogService,
 		@IWebWorkerService private readonly webWorkerService: IWebWorkerService,
+		@ISearchService private readonly searchService: ISearchService,
 	) {
 		super();
 	}
@@ -140,10 +201,45 @@ export class CodeCanvasProjectService extends Disposable implements ICodeCanvasP
 		})));
 		const project = new engine.RemoteProject((method, args) => worker.proxy.$call(method, args));
 		project.setFiles(files);
-		return this.projects.add(this.instantiationService.createInstance(CodeCanvasFolderProject, folder, project));
+		const folderProject = this.projects.add(this.instantiationService.createInstance(CodeCanvasFolderProject, folder, project));
+		await folderProject.loadConfigFile();
+		return folderProject;
 	}
 
 	private async readSourceFiles(folder: URI): Promise<Record<string, string>> {
+		const resources = await this.listSourceFiles(folder);
+		const files: Record<string, string> = {};
+		const contents = await Promise.all(resources.map(resource => this.fileService.readFile(resource).catch(() => undefined)));
+		resources.forEach((resource, index) => {
+			const content = contents[index];
+			if (content) {
+				files[relativePath(folder, resource)!] = content.value.toString();
+			}
+		});
+		return files;
+	}
+
+	/** VS Code's file search: fast, and it leaves out what .gitignore and the exclude settings leave out. */
+	private async listSourceFiles(folder: URI): Promise<URI[]> {
+		try {
+			const query = this.instantiationService.createInstance(QueryBuilder).file([folder], {
+				_reason: 'codeCanvasProject',
+				includePattern: CODE_CANVAS_FILE_PATTERN,
+				excludePattern: [{ pattern: [...SKIPPED_FOLDERS].map(name => `**/${name}/**`) }],
+				maxResults: MAX_PROJECT_FILES,
+			});
+			const result = await this.searchService.fileSearch(query);
+			if (result.limitHit) {
+				this.logService.warn(`[codeCanvas] ${folder.fsPath} has more than ${MAX_PROJECT_FILES} TypeScript files; references only cover ${MAX_PROJECT_FILES} of them.`);
+			}
+			return result.results.map(match => match.resource);
+		} catch (error) {
+			this.logService.warn('[codeCanvas] file search failed, listing the folder instead', error);
+			return this.walkSourceFiles(folder);
+		}
+	}
+
+	private async walkSourceFiles(folder: URI): Promise<URI[]> {
 		const resources: URI[] = [];
 		const walk = async (stat: IFileStat) => {
 			for (const child of stat.children ?? []) {
@@ -158,17 +254,6 @@ export class CodeCanvasProjectService extends Disposable implements ICodeCanvasP
 			}
 		};
 		await walk(await this.fileService.resolve(folder));
-		if (resources.length >= MAX_PROJECT_FILES) {
-			this.logService.warn(`[codeCanvas] ${folder.fsPath} has more than ${MAX_PROJECT_FILES} TypeScript files; references only cover the first ${MAX_PROJECT_FILES}.`);
-		}
-		const files: Record<string, string> = {};
-		const contents = await Promise.all(resources.map(resource => this.fileService.readFile(resource).catch(() => undefined)));
-		resources.forEach((resource, index) => {
-			const content = contents[index];
-			if (content) {
-				files[relativePath(folder, resource)!] = content.value.toString();
-			}
-		});
-		return files;
+		return resources;
 	}
 }

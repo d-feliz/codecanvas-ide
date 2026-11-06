@@ -28,7 +28,7 @@ import { IFileService } from '../../../../platform/files/common/files.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IMarker, IMarkerService, MarkerSeverity } from '../../../../platform/markers/common/markers.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
-import { IStorageService } from '../../../../platform/storage/common/storage.js';
+import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { isDark } from '../../../../platform/theme/common/theme.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
@@ -61,7 +61,7 @@ export class CodeCanvasEditor extends EditorPane {
 		group: IEditorGroup,
 		@ITelemetryService telemetryService: ITelemetryService,
 		@IThemeService themeService: IThemeService,
-		@IStorageService storageService: IStorageService,
+		@IStorageService private readonly storageService: IStorageService,
 		@ITextModelService private readonly textModelService: ITextModelService,
 		@IFileService private readonly fileService: IFileService,
 		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
@@ -112,11 +112,15 @@ export class CodeCanvasEditor extends EditorPane {
 		const path = folderProject.projectPath(input.resource) ?? input.getName();
 		const layoutResource = joinPath(folder, CODE_CANVAS_LAYOUT_FOLDER, `${path}.json`);
 
+		const savedLayout = await this.readLayout(layoutResource);
+		// Opening a file must not add files to the repo: positions the canvas picks by itself stay in
+		// VS Code's workspace storage until the user arranges something, or a layout file exists already.
+		let isLayoutInRepo = savedLayout.isInRepo;
 		let isApplyingCanvasEdit = false;
 		let layoutToSave: FileLayout | undefined;
 		const layoutSaver = this.inputDisposables.add(new RunOnceScheduler(() => {
 			if (layoutToSave) {
-				void this.writeLayout(engine, layoutResource, layoutToSave, canvas);
+				void this.saveLayout(engine, layoutResource, layoutToSave, canvas, isLayoutInRepo);
 			}
 		}, 400));
 
@@ -136,7 +140,10 @@ export class CodeCanvasEditor extends EditorPane {
 					isApplyingCanvasEdit = false;
 				}
 			},
-			onLayoutChange: layout => {
+			onLayoutChange: (layout, reason) => {
+				if (reason === 'user') {
+					isLayoutInRepo = true;
+				}
 				layoutToSave = layout;
 				layoutSaver.schedule();
 			},
@@ -156,7 +163,7 @@ export class CodeCanvasEditor extends EditorPane {
 			}
 		}));
 
-		canvas.openFile(path, model.getValue(), await this.readLayout(layoutResource));
+		canvas.openFile(path, model.getValue(), savedLayout.layout);
 		// Errors come from VS Code's Problems (the TypeScript extension), not from the engine.
 		const showProblems = () => canvas.setDiagnostics(this.problemsOf(model));
 		showProblems();
@@ -202,19 +209,28 @@ export class CodeCanvasEditor extends EditorPane {
 		this.container?.style.setProperty('--cc-font', fontFamily || 'var(--monaco-monospace-font)');
 	}
 
-	private async writeLayout(engine: Engine, resource: URI, layout: FileLayout, canvas: CodeCanvas) {
+	private async saveLayout(engine: Engine, resource: URI, layout: FileLayout, canvas: CodeCanvas, isLayoutInRepo: boolean) {
+		const serialized = engine.serializeLayout(layout, canvas.getModel());
+		const storageKey = layoutStorageKey(resource);
+		if (!isLayoutInRepo) {
+			this.storageService.store(storageKey, serialized, StorageScope.WORKSPACE, StorageTarget.MACHINE);
+			return;
+		}
 		try {
-			await this.fileService.writeFile(resource, VSBuffer.fromString(engine.serializeLayout(layout, canvas.getModel())));
+			await this.fileService.writeFile(resource, VSBuffer.fromString(serialized));
+			this.storageService.remove(storageKey, StorageScope.WORKSPACE);
 		} catch (error) {
 			this.logService.error('[codeCanvas] could not save block positions', error);
 		}
 	}
 
-	private async readLayout(resource: URI): Promise<FileLayout | null> {
+	/** The layout file in the repo, or else the positions kept in workspace storage. */
+	private async readLayout(resource: URI): Promise<{ layout: FileLayout | null; isInRepo: boolean }> {
 		try {
-			return JSON.parse((await this.fileService.readFile(resource)).value.toString()) as FileLayout;
+			return { layout: JSON.parse((await this.fileService.readFile(resource)).value.toString()) as FileLayout, isInRepo: true };
 		} catch {
-			return null;
+			const stored = this.storageService.get(layoutStorageKey(resource), StorageScope.WORKSPACE);
+			return { layout: stored ? JSON.parse(stored) as FileLayout : null, isInRepo: false };
 		}
 	}
 
@@ -316,6 +332,10 @@ export class CodeCanvasEditor extends EditorPane {
 			this.container.style.height = `${dimension.height}px`;
 		}
 	}
+}
+
+function layoutStorageKey(layoutResource: URI): string {
+	return `codeCanvas.layout:${layoutResource.toString()}`;
 }
 
 /** Replace the document's text with `text` as one undo step, touching only the part that changed. */
