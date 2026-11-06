@@ -21,7 +21,8 @@ import { ActiveEditorContext, ResourceContextKey } from '../../../common/context
 import { DEFAULT_EDITOR_ASSOCIATION, EditorExtensions, IEditorFactoryRegistry, IEditorSerializer } from '../../../common/editor.js';
 import { IEditorResolverService, RegisteredEditorPriority } from '../../../services/editor/common/editorResolverService.js';
 import { TEXT_FILE_EDITOR_ID } from '../../files/common/files.js';
-import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN } from '../common/codeCanvas.js';
+import { IEditorService } from '../../../services/editor/common/editorService.js';
+import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
 import { CodeCanvasEditor } from './codeCanvasEditor.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
 import { CodeCanvasProjectService, ICodeCanvasProjectService } from './codeCanvasProjects.js';
@@ -113,5 +114,27 @@ registerAction2(class OpenAsTextAction extends Action2 {
 
 	run(accessor: ServicesAccessor, ...args: unknown[]): Promise<unknown> {
 		return accessor.get(ICommandService).executeCommand(REOPEN_ACTIVE_EDITOR_WITH_COMMAND_ID, DEFAULT_EDITOR_ASSOCIATION.id, ...args);
+	}
+});
+
+registerAction2(class ToggleChangesAction extends Action2 {
+	constructor() {
+		super({
+			id: 'codeCanvas.toggleChanges',
+			title: localize2('codeCanvas.showChanges', "Show Changes"),
+			category: localize2('codeCanvas.category', "Code Canvas"),
+			icon: Codicon.diffSingle,
+			toggled: { condition: CODE_CANVAS_SHOWS_CHANGES, title: localize('codeCanvas.hideChanges', "Hide Changes") },
+			f1: true,
+			precondition: canvasEditorActive,
+			menu: { id: MenuId.EditorTitle, group: 'navigation', when: canvasEditorActive },
+		});
+	}
+
+	async run(accessor: ServicesAccessor): Promise<void> {
+		const activePane = accessor.get(IEditorService).activeEditorPane;
+		if (activePane instanceof CodeCanvasEditor) {
+			await activePane.toggleChanges();
+		}
 	}
 });

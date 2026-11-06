@@ -190,6 +190,42 @@ const assert = (condition, message) => {
 	await page.waitForTimeout(500);
 	assert(!(await isActiveTabDirty()), 'Cmd+S saves the file from the canvas');
 
+	// changes since the last commit
+	await openFile('cart.ts');
+	await page.waitForSelector(`${canvas} .cc-block[data-id="Cart/total"]`);
+	await page.waitForTimeout(500);
+	await selectBlock('Cart/total');
+	await block('Cart/total').locator('.cc-head').click();
+	await page.waitForSelector(`${canvas} .cc-editor .monaco-editor .view-lines`);
+	await page.locator(`${canvas} .cc-editor .monaco-editor .view-lines`).click();
+	await page.keyboard.press('Meta+ArrowUp');
+	await page.keyboard.press('End');
+	await page.keyboard.press('Enter');
+	await page.keyboard.type('const tax = 0;');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	await selectBlock('isEmpty');
+	await page.keyboard.press('Delete');
+	await page.waitForTimeout(300);
+	await page.click('.editor-actions [aria-label*="Show Changes"]');
+	await page.waitForSelector(`${canvas} .cc-diff-changed`, { timeout: 10000 }).catch(() => { });
+	const hasDiffClass = (id: string, name: string) => block(id).evaluate((element, className) => element.classList.contains(className), name);
+	assert(await hasDiffClass('Cart/total', 'cc-diff-changed') && await block('Cart/total').locator('.cc-diff-chip.changed').count() === 1, 'Show Changes marks the edited block as changed');
+	assert(await hasDiffClass('Cart/add', 'cc-diff-unchanged'), 'and untouched blocks as unchanged');
+	assert(/\+\s+const tax = 0;/.test(await block('Cart/total').locator('.cc-diff-prev').innerText()), 'the changed block previews its new line');
+	assert(await page.locator(`${canvas} .cc-diff-removed[title^="isEmpty"]`).count() === 1, 'a deleted block shows as removed');
+	await page.screenshot({ path: path.join(screenshots, 'canvas-changes.png') });
+	await selectBlock('Cart/total');
+	await block('Cart/total').locator('.cc-head').click();
+	await page.waitForSelector(`${canvas} .cc-editor .monaco-diff-editor`, { timeout: 10000 }).catch(() => { });
+	const insertedLines = await page.locator(`${canvas} .cc-editor .monaco-diff-editor .line-insert`).count();
+	assert(insertedLines > 0, 'the block editor shows an inline diff against the commit');
+	await page.screenshot({ path: path.join(screenshots, 'canvas-changes-editor.png') });
+	await page.keyboard.press('Escape');
+	await page.click('.editor-actions [aria-label*="Hide Changes"], .editor-actions [aria-label*="Show Changes"]');
+	await page.waitForTimeout(300);
+	assert(await page.locator(`${canvas} [class*="cc-diff-"]`).count() === 0, 'hiding changes restores the normal view');
+
 	console.log('page errors', JSON.stringify(errors));
 	await browser.close().catch(() => { });
 })();

@@ -14,7 +14,11 @@ import { URI } from '../../../../base/common/uri.js';
 import { VSBuffer } from '../../../../base/common/buffer.js';
 import { EditorExtensionsRegistry } from '../../../../editor/browser/editorExtensions.js';
 import { IBulkEditService, ResourceTextEdit } from '../../../../editor/browser/services/bulkEditService.js';
+import { ICodeEditor } from '../../../../editor/browser/editorBrowser.js';
 import { CodeEditorWidget } from '../../../../editor/browser/widget/codeEditor/codeEditorWidget.js';
+import { DiffEditorWidget } from '../../../../editor/browser/widget/diffEditor/diffEditorWidget.js';
+import { ILanguageService } from '../../../../editor/common/languages/language.js';
+import { IModelService } from '../../../../editor/common/services/model.js';
 import { Position } from '../../../../editor/common/core/position.js';
 import { Range } from '../../../../editor/common/core/range.js';
 import { Selection } from '../../../../editor/common/core/selection.js';
@@ -22,7 +26,9 @@ import { ITextModel, TrackedRangeStickiness } from '../../../../editor/common/mo
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { localize } from '../../../../nls.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
-import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
+import { IContextKey, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
+import { INotificationService } from '../../../../platform/notification/common/notification.js';
+import { IQuickDiffService } from '../../scm/common/quickDiff.js';
 import { IEditorOptions } from '../../../../platform/editor/common/editor.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
@@ -37,7 +43,7 @@ import { EditorPane } from '../../../browser/parts/editor/editorPane.js';
 import { IEditorOpenContext } from '../../../common/editor.js';
 import { IEditorGroup } from '../../../services/editor/common/editorGroupsService.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
-import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_LAYOUT_FOLDER } from '../common/codeCanvas.js';
+import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_LAYOUT_FOLDER, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
 import { CodeCanvas, EditorHandle, EditorOptions, Engine, FileLayout, HostDiagnostic, loadEngine, OtherFileChange } from './codeCanvasEngine.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
 import { ICodeCanvasProjectService } from './codeCanvasProjects.js';
@@ -56,6 +62,11 @@ export class CodeCanvasEditor extends EditorPane {
 	private container: HTMLElement | undefined;
 	private canvas: CodeCanvas | undefined;
 	private readonly inputDisposables = this._register(new DisposableStore());
+	/** Kept across files: once on, every file this pane shows is compared with its last commit. */
+	private showsChanges = false;
+	private readonly showsChangesContext: IContextKey<boolean>;
+	private shownFile: { canvas: CodeCanvas; model: ITextModel; layoutResource: URI } | undefined;
+	private readonly committedVersionDisposables = this._register(new DisposableStore());
 
 	constructor(
 		group: IEditorGroup,
@@ -72,8 +83,73 @@ export class CodeCanvasEditor extends EditorPane {
 		@ILogService private readonly logService: ILogService,
 		@IConfigurationService private readonly configurationService: IConfigurationService,
 		@IMarkerService private readonly markerService: IMarkerService,
+		@IQuickDiffService private readonly quickDiffService: IQuickDiffService,
+		@IModelService private readonly modelService: IModelService,
+		@ILanguageService private readonly languageService: ILanguageService,
+		@INotificationService private readonly notificationService: INotificationService,
 	) {
 		super(CodeCanvasEditor.ID, group, telemetryService, themeService, storageService);
+		this.showsChangesContext = CODE_CANVAS_SHOWS_CHANGES.bindTo(group.scopedContextKeyService);
+	}
+
+	/** Show or hide the changes since the file's last commit. */
+	async toggleChanges(): Promise<void> {
+		this.showsChanges = !this.showsChanges;
+		this.showsChangesContext.set(this.showsChanges);
+		await this.showChangesIfOn();
+	}
+
+	private async showChangesIfOn() {
+		this.committedVersionDisposables.clear();
+		const shownFile = this.shownFile;
+		if (!shownFile) {
+			return;
+		}
+		if (!this.showsChanges) {
+			return shownFile.canvas.setDiffBase(null);
+		}
+		const committed = await this.readCommittedVersion(shownFile.model.uri);
+		if (this.shownFile !== shownFile || !this.showsChanges) {
+			return;
+		}
+		if (!committed) {
+			this.notificationService.info(localize('codeCanvas.noCommittedVersion', "This file has no committed version to compare with."));
+			this.showsChanges = false;
+			this.showsChangesContext.set(false);
+			return;
+		}
+		const committedLayout = await this.readCommittedVersion(shownFile.layoutResource);
+		const showCommitted = () => {
+			let layout: FileLayout | null = null;
+			try {
+				layout = committedLayout ? JSON.parse(committedLayout.model.getValue()) as FileLayout : null;
+			} catch {
+				// A layout that doesn't parse: removed blocks are placed like new ones.
+			}
+			shownFile.canvas.setDiffBase({ text: committed.model.getValue(), layout });
+		};
+		showCommitted();
+		// The committed version changes after a commit (or a checkout).
+		this.committedVersionDisposables.add(committed.model.onDidChangeContent(showCommitted));
+		this.committedVersionDisposables.add(committed.reference);
+		if (committedLayout) {
+			this.committedVersionDisposables.add(committedLayout.reference);
+		}
+	}
+
+	/** The file as source control has it (git: HEAD or the staged version), like the gutter's change bars. */
+	private async readCommittedVersion(resource: URI): Promise<{ model: ITextModel; reference: { dispose(): void } } | undefined> {
+		try {
+			const quickDiffs = await this.quickDiffService.getQuickDiffs(resource);
+			const sourceControl = quickDiffs.find(quickDiff => quickDiff.kind === 'primary') ?? quickDiffs[0];
+			if (!sourceControl) {
+				return undefined;
+			}
+			const reference = await this.textModelService.createModelReference(sourceControl.originalResource);
+			return { model: reference.object.textEditorModel, reference };
+		} catch {
+			return undefined;
+		}
 	}
 
 	protected override createEditor(parent: HTMLElement): void {
@@ -95,6 +171,8 @@ export class CodeCanvasEditor extends EditorPane {
 
 	override async setInput(input: CodeCanvasEditorInput, options: IEditorOptions | undefined, context: IEditorOpenContext, token: CancellationToken): Promise<void> {
 		this.inputDisposables.clear();
+		this.committedVersionDisposables.clear();
+		this.shownFile = undefined;
 		await super.setInput(input, options, context, token);
 
 		const folder = this.workspaceContextService.getWorkspaceFolder(input.resource)?.uri ?? dirname(input.resource);
@@ -164,6 +242,9 @@ export class CodeCanvasEditor extends EditorPane {
 		}));
 
 		canvas.openFile(path, model.getValue(), savedLayout.layout);
+		this.shownFile = { canvas, model, layoutResource };
+		this.inputDisposables.add(toDisposable(() => this.shownFile = undefined));
+		void this.showChangesIfOn();
 		// Errors come from VS Code's Problems (the TypeScript extension), not from the engine.
 		const showProblems = () => canvas.setDiagnostics(this.problemsOf(model));
 		showProblems();
@@ -252,16 +333,11 @@ export class CodeCanvasEditor extends EditorPane {
 	 * Blocks are edited in Monaco on the file's own document, with every line outside the block hidden.
 	 * So IntelliSense, hovers and error squiggles work as in the text editor, and undo is the file's.
 	 */
-	private createBlockEditor(model: ITextModel, { parent, start, end, selection, onClose }: EditorOptions): EditorHandle {
+	private createBlockEditor(model: ITextModel, { parent, start, end, selection, onClose, diffBase }: EditorOptions): EditorHandle {
 		const disposables = new DisposableStore();
-		const editor = disposables.add(this.instantiationService.createInstance(CodeEditorWidget, parent, {
-			automaticLayout: true,
-			minimap: { enabled: false },
-			scrollBeyondLastLine: false,
-			lineNumbersMinChars: 3,
-			fixedOverflowWidgets: true,
-		}, { contributions: EditorExtensionsRegistry.getEditorContributions() }));
-		editor.setModel(model);
+		const editor = diffBase === undefined
+			? this.createCodeEditor(parent, model, disposables)
+			: this.createDiffEditor(parent, model, start, end, diffBase, disposables);
 
 		// Grows with typing at its edges, so the block's new lines stay visible.
 		const [blockDecorationId] = model.deltaDecorations([], [{
@@ -316,6 +392,44 @@ export class CodeCanvasEditor extends EditorPane {
 		};
 	}
 
+	private createCodeEditor(parent: HTMLElement, model: ITextModel, disposables: DisposableStore): ICodeEditor {
+		const editor = disposables.add(this.instantiationService.createInstance(CodeEditorWidget, parent, BLOCK_EDITOR_OPTIONS, { contributions: EditorExtensionsRegistry.getEditorContributions() }));
+		editor.setModel(model);
+		return editor;
+	}
+
+	/**
+	 * While changes are shown: an inline diff of the block. Its edited side is still the file itself; its
+	 * original side is the file with just this block put back as committed, so the only differences
+	 * are in the block. Returns the edited side.
+	 */
+	private createDiffEditor(parent: HTMLElement, model: ITextModel, start: number, end: number, committedBlock: string, disposables: DisposableStore): ICodeEditor {
+		const text = model.getValue();
+		const original = this.modelService.createModel(text.slice(0, start) + committedBlock + text.slice(end), this.languageService.createById(model.getLanguageId()));
+		const diffEditor = disposables.add(this.instantiationService.createInstance(DiffEditorWidget, parent, {
+			...BLOCK_EDITOR_OPTIONS,
+			renderSideBySide: false,
+			useInlineViewWhenSpaceIsLimited: false,
+			renderIndicators: true,
+			originalEditable: false,
+			renderOverviewRuler: false,
+			renderMarginRevertIcon: false,
+			renderGutterMenu: false,
+			hideUnchangedRegions: { enabled: false },
+			diffCodeLens: false,
+		}, { originalEditor: { contributions: [] }, modifiedEditor: { contributions: EditorExtensionsRegistry.getEditorContributions() } }));
+		diffEditor.setModel({ original, modified: model });
+		// The inline diff still shows the original side's line numbers: hide its lines outside the block too.
+		const originalFirstLine = original.getPositionAt(start).lineNumber;
+		const originalLastLine = original.getPositionAt(start + committedBlock.length).lineNumber;
+		const originalLinesOutsideBlock = [new Range(1, 1, originalFirstLine - 1, 1), new Range(originalLastLine + 1, 1, original.getLineCount(), 1)]
+			.filter(range => range.startLineNumber <= range.endLineNumber && range.endLineNumber >= 1);
+		diffEditor.getOriginalEditor().setHiddenAreas(originalLinesOutsideBlock, CodeCanvasEditor);
+		// After the diff editor, which still shows it until it's disposed.
+		disposables.add(toDisposable(() => original.dispose()));
+		return diffEditor.getModifiedEditor();
+	}
+
 	override clearInput(): void {
 		this.inputDisposables.clear();
 		super.clearInput();
@@ -333,6 +447,14 @@ export class CodeCanvasEditor extends EditorPane {
 		}
 	}
 }
+
+const BLOCK_EDITOR_OPTIONS = {
+	automaticLayout: true,
+	minimap: { enabled: false },
+	scrollBeyondLastLine: false,
+	lineNumbersMinChars: 3,
+	fixedOverflowWidgets: true,
+};
 
 function layoutStorageKey(layoutResource: URI): string {
 	return `codeCanvas.layout:${layoutResource.toString()}`;

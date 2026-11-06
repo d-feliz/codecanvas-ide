@@ -23,6 +23,9 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   aliases, `baseUrl`, relative `extends`). Block positions are saved in `.codecanvas/` in the
   workspace folder once you arrange something; until then (when you only open a file) they stay in
   VS Code's workspace storage, so the repo gets no new files.
+  "Show Changes" (title bar) compares the file with its committed version from source control (the
+  same one the gutter's change bars use): unchanged blocks are desaturated, added and changed blocks
+  get a chip, removed blocks show in red where they were, and the block editor becomes an inline diff.
 - `build/next/index.ts`: bundles that worker in production builds.
 - `build/gulpfile.vscode.ts`: packages the engine's runtime files. The dependency list comes from
   the pnpm lockfile, which leaves out `link:` dependencies such as the engine.

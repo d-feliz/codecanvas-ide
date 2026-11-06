@@ -7,7 +7,7 @@
 // repo, checked out next to this one), starts the app on it, runs canvas.e2e.ts, and quits the app.
 //   node test/codecanvas/run.ts                 # the development build (scripts/code.sh)
 //   node test/codecanvas/run.ts --app <path>    # a packaged app, e.g. ../VSCode-darwin-arm64/CodeCanvas.app
-import { spawn, type ChildProcess } from 'child_process';
+import { execFileSync, spawn, type ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -34,6 +34,11 @@ function prepareProject() {
 		`}`,
 		``,
 	].join('\n'));
+	// A git repo with one commit, so "Show Changes" has a committed version to compare with.
+	const git = (...gitArgs: string[]) => execFileSync('git', ['-c', 'user.name=CodeCanvas e2e', '-c', 'user.email=e2e@codecanvas.invalid', ...gitArgs], { cwd: project, stdio: 'ignore' });
+	git('init', '-q');
+	git('add', '-A');
+	git('commit', '-q', '-m', 'Sample project');
 	const userSettings = path.join(workFolder, 'user', 'User');
 	fs.mkdirSync(userSettings, { recursive: true });
 	fs.writeFileSync(path.join(userSettings, 'settings.json'), JSON.stringify({ 'git.openRepositoryInParentFolders': 'never' }));
