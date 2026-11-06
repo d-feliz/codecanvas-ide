@@ -11,8 +11,10 @@ Kept small on purpose, so merging new VS Code versions stays easy:
 
 - `product.json`: name, app IDs, data folders and URL protocol are CodeCanvas's own, so it installs
   and keeps settings separately from VS Code and Code - OSS (settings go in `~/.codecanvas-ide`).
-- `src/vs/workbench/contrib/codeCanvas/`: the canvas editor. TypeScript files get "Open as Canvas"
-  (title bar button, command, and Open With…). The canvas edits the file's text document, so unsaved
+- `src/vs/workbench/contrib/codeCanvas/`: the canvas editor. TypeScript files on disk open as a canvas
+  ("Open as Text" in the title bar switches; the setting `codeCanvas.openTypeScriptFilesAsCanvas`
+  turns the default off, leaving "Open as Canvas" and Open With…). Opening a file at a position
+  (Go to Definition, search results, Problems) selects the block there. The canvas edits the file's text document, so unsaved
   changes, save and undo are shared with the text editor. Blocks are edited in Monaco on the file's
   own document with the other lines hidden, so IntelliSense, hovers and error squiggles work there.
   Errors on blocks come from Problems (the TypeScript extension). Usage links between blocks and

@@ -29,7 +29,7 @@ import { IConfigurationService } from '../../../../platform/configuration/common
 import { IContextKey, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { INotificationService } from '../../../../platform/notification/common/notification.js';
 import { IQuickDiffService } from '../../scm/common/quickDiff.js';
-import { IEditorOptions } from '../../../../platform/editor/common/editor.js';
+import { IEditorOptions, ITextEditorOptions } from '../../../../platform/editor/common/editor.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IMarker, IMarkerService, MarkerSeverity } from '../../../../platform/markers/common/markers.js';
@@ -265,6 +265,27 @@ export class CodeCanvasEditor extends EditorPane {
 		if (blockToReveal) {
 			blockToRevealByResource.delete(input.resource.toString());
 			canvas.reveal(blockToReveal);
+		}
+		this.revealSelection(engine, options);
+	}
+
+	override setOptions(options: IEditorOptions | undefined): void {
+		super.setOptions(options);
+		void loadEngine().then(engine => this.revealSelection(engine, options));
+	}
+
+	/** Opened at a place in the text (Go to Definition, a search result, a problem): select the block there. */
+	private revealSelection(engine: Engine, options: IEditorOptions | undefined) {
+		const selection = (options as ITextEditorOptions | undefined)?.selection;
+		const shownFile = this.shownFile;
+		const model = shownFile?.canvas.getModel();
+		if (!selection || !shownFile || !model) {
+			return;
+		}
+		const offset = shownFile.model.getOffsetAt({ lineNumber: selection.startLineNumber, column: selection.startColumn ?? 1 });
+		const block = engine.blockAt(model, offset);
+		if (block) {
+			shownFile.canvas.reveal(block.id);
 		}
 	}
 

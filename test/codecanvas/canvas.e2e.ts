@@ -67,13 +67,27 @@ const assert = (condition, message) => {
 		await page.waitForTimeout(300);
 	}
 
-	// open as canvas from the text editor
+	// TypeScript files open as a canvas
 	await openFile('cart.ts');
-	// Quick Open reopens a file the way it was last shown: start from the text editor.
-	const isCanvasShown = await page.waitForSelector(`${canvas} .cc-block`, { timeout: 3000 }).then(() => true, () => false);
+	const isCanvasShown = await page.waitForSelector(`${canvas} .cc-block`, { timeout: 10000 }).then(() => true, () => false);
+	assert(isCanvasShown, 'TypeScript files open as a canvas by default');
 	if (isCanvasShown) {
 		await page.click('.editor-actions [aria-label*="Open as Text"]');
 	}
+	await page.waitForSelector('.monaco-editor .view-lines');
+
+	// Go to Definition from the text opens the other file as a canvas, at that block
+	await page.locator('.editor-instance .monaco-editor .view-lines').first().click();
+	await page.keyboard.press('Control+g');
+	await page.keyboard.type('37:24');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(300);
+	await page.keyboard.press('F12');
+	const isDefinitionSelected = await page.waitForSelector(`${canvas} .cc-block[data-id="applyDiscount"].cc-sel`, { timeout: 20000 }).then(() => true, () => false);
+	assert(isDefinitionSelected && (await activeTab().innerText()).includes('pricing.ts'), 'Go to Definition opens the canvas with the definition selected');
+
+	// open as canvas from the text editor (Quick Open reopens cart.ts as text, the way it was last shown)
+	await openFile('cart.ts');
 	await page.waitForSelector('.monaco-editor .view-lines');
 	const hasCanvasButton = await page.waitForSelector('.editor-actions [aria-label*="Open as Canvas"]', { timeout: 10000 }).then(() => true, () => false);
 	assert(hasCanvasButton, 'text editor shows the Open as Canvas button');
@@ -228,8 +242,6 @@ const assert = (condition, message) => {
 
 	// a merge conflict (run.ts merged two branches that both changed discounts.ts)
 	await openFile('discounts.ts');
-	await page.waitForSelector('.editor-actions [aria-label*="Open as Canvas"]', { timeout: 10000 });
-	await page.click('.editor-actions [aria-label*="Open as Canvas"]');
 	await page.waitForSelector(`${canvas} .cc-block[data-id="seasonalDiscount"]`, { timeout: 20000 });
 	await page.waitForTimeout(500);
 	assert((await page.locator(`${canvas} .cc-banner:not([hidden])`).innerText()).includes('merge conflict'), 'a file with merge conflicts shows them instead of pausing');

@@ -7,6 +7,9 @@ import { RawContextKey } from '../../../../platform/contextkey/common/contextkey
 
 export const CODE_CANVAS_EDITOR_ID = 'workbench.editor.codeCanvas';
 
+/** Setting: TypeScript files open as a canvas (the text editor is one click away), or as text. */
+export const CODE_CANVAS_DEFAULT_SETTING = 'codeCanvas.openTypeScriptFilesAsCanvas';
+
 /** The canvas shows the changes since the file's last commit. */
 export const CODE_CANVAS_SHOWS_CHANGES = new RawContextKey<boolean>('codeCanvasShowsChanges', false);
 export const CODE_CANVAS_INPUT_ID = 'workbench.input.codeCanvas';

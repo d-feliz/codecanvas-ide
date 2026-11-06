@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Codicon } from '../../../../base/common/codicons.js';
-import { Disposable } from '../../../../base/common/lifecycle.js';
+import { Disposable, MutableDisposable } from '../../../../base/common/lifecycle.js';
 import { URI, UriComponents } from '../../../../base/common/uri.js';
 import { localize, localize2 } from '../../../../nls.js';
 import { Action2, MenuId, registerAction2 } from '../../../../platform/actions/common/actions.js';
@@ -22,12 +22,28 @@ import { DEFAULT_EDITOR_ASSOCIATION, EditorExtensions, IEditorFactoryRegistry, I
 import { IEditorResolverService, RegisteredEditorPriority } from '../../../services/editor/common/editorResolverService.js';
 import { TEXT_FILE_EDITOR_ID } from '../../files/common/files.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
-import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
+import { Schemas } from '../../../../base/common/network.js';
+import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
+import { Extensions as ConfigurationExtensions, IConfigurationRegistry } from '../../../../platform/configuration/common/configurationRegistry.js';
+import { CODE_CANVAS_DEFAULT_SETTING, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
 import { CodeCanvasEditor } from './codeCanvasEditor.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
 import { CodeCanvasProjectService, ICodeCanvasProjectService } from './codeCanvasProjects.js';
 
 registerSingleton(ICodeCanvasProjectService, CodeCanvasProjectService, InstantiationType.Delayed);
+
+Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration).registerConfiguration({
+	id: 'codeCanvas',
+	title: localize('codeCanvasConfigurationTitle', "Code Canvas"),
+	type: 'object',
+	properties: {
+		[CODE_CANVAS_DEFAULT_SETTING]: {
+			type: 'boolean',
+			default: true,
+			markdownDescription: localize('codeCanvas.openAsCanvas', "Open TypeScript files as a canvas. When off, they open as text and the canvas is in **Open With…** and the editor title bar."),
+		},
+	},
+});
 
 Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane).registerEditorPane(
 	EditorPaneDescriptor.create(CodeCanvasEditor, CodeCanvasEditor.ID, localize('codeCanvasEditor', "Code Canvas")),
@@ -50,29 +66,45 @@ class CodeCanvasEditorInputSerializer implements IEditorSerializer {
 }
 Registry.as<IEditorFactoryRegistry>(EditorExtensions.EditorFactory).registerEditorSerializer(CodeCanvasEditorInput.ID, CodeCanvasEditorInputSerializer);
 
-/** Offers the canvas in "Open With…" for TypeScript files. The text editor stays the default. */
+/**
+ * TypeScript files open as a canvas by default (the setting turns that off, leaving the canvas in
+ * "Open With…"). Diffs, and files that aren't on disk (e.g. a git version), keep the text editor.
+ */
 class CodeCanvasEditorResolverContribution extends Disposable implements IWorkbenchContribution {
 
 	static readonly ID = 'workbench.contrib.codeCanvasEditorResolver';
 
+	private readonly registration = this._register(new MutableDisposable());
+
 	constructor(
-		@IEditorResolverService editorResolverService: IEditorResolverService,
-		@IInstantiationService instantiationService: IInstantiationService,
+		@IEditorResolverService private readonly editorResolverService: IEditorResolverService,
+		@IInstantiationService private readonly instantiationService: IInstantiationService,
+		@IConfigurationService private readonly configurationService: IConfigurationService,
 	) {
 		super();
-		this._register(editorResolverService.registerEditor(
+		this.register();
+		this._register(this.configurationService.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration(CODE_CANVAS_DEFAULT_SETTING)) {
+				this.register();
+			}
+		}));
+	}
+
+	private register() {
+		const isDefault = this.configurationService.getValue<boolean>(CODE_CANVAS_DEFAULT_SETTING) !== false;
+		this.registration.value = this.editorResolverService.registerEditor(
 			CODE_CANVAS_FILE_PATTERN,
 			{
 				id: CODE_CANVAS_EDITOR_ID,
 				label: localize('codeCanvas.displayName', "Code Canvas"),
 				detail: DEFAULT_EDITOR_ASSOCIATION.providerDisplayName,
-				priority: RegisteredEditorPriority.option,
+				priority: isDefault ? RegisteredEditorPriority.default : RegisteredEditorPriority.option,
 			},
-			{},
+			{ canSupportResource: resource => resource.scheme === Schemas.file || resource.scheme === Schemas.vscodeRemote },
 			{
-				createEditorInput: ({ resource }) => ({ editor: instantiationService.createInstance(CodeCanvasEditorInput, resource) }),
+				createEditorInput: ({ resource, options }) => ({ editor: this.instantiationService.createInstance(CodeCanvasEditorInput, resource), options }),
 			}
-		));
+		);
 	}
 }
 registerWorkbenchContribution2(CodeCanvasEditorResolverContribution.ID, CodeCanvasEditorResolverContribution, WorkbenchPhase.BlockStartup);
