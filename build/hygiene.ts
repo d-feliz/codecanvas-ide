@@ -16,6 +16,9 @@ import eslint from './gulp-eslint.ts';
 import * as formatter from './lib/formatter.ts';
 import gulpstylelint from './stylelint.ts';
 
+/** CodeCanvas: the fork's own files carry the CodeCanvas header instead of Microsoft's. */
+const copyrightOwnerLines = [' *  Copyright (c) Microsoft Corporation. All rights reserved.', ' *  Copyright (c) CodeCanvas contributors. All rights reserved.'];
+
 const copyrightHeaderLines = [
 	'/*---------------------------------------------------------------------------------------------',
 	' *  Copyright (c) Microsoft Corporation. All rights reserved.',
@@ -163,7 +166,9 @@ export function hygiene(some: NodeJS.ReadWriteStream | string[] | undefined, run
 		const lines = file.__lines;
 
 		for (let i = 0; i < copyrightHeaderLines.length; i++) {
-			if (lines[i] !== copyrightHeaderLines[i]) {
+			const isCopyrightOwnerLine = i === 1;
+			const isAcceptedLine = isCopyrightOwnerLine ? copyrightOwnerLines.includes(lines[i]) : lines[i] === copyrightHeaderLines[i];
+			if (!isAcceptedLine) {
 				console.error(file.relative + ': Missing or bad copyright statement');
 				errorCount++;
 				break;

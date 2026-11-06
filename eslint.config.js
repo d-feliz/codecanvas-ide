@@ -144,7 +144,8 @@ export default defineConfig(
 				'block',
 				[
 					'---------------------------------------------------------------------------------------------',
-					' *  Copyright (c) Microsoft Corporation. All rights reserved.',
+					// CodeCanvas: the fork's own files carry the CodeCanvas header.
+					{ pattern: '^ \\*  Copyright \\(c\\) (Microsoft Corporation|CodeCanvas contributors)\\. All rights reserved\\.$', template: ' *  Copyright (c) Microsoft Corporation. All rights reserved.' },
 					' *  Licensed under the MIT License. See License.txt in the project root for license information.',
 					' *--------------------------------------------------------------------------------------------'
 				]
@@ -1962,6 +1963,10 @@ export default defineConfig(
 				{
 					'target': 'src/vs/workbench/contrib/*/~',
 					'restrictions': [
+						{
+							'when': 'hasBrowser',
+							'pattern': '@codecanvas/engine/**'
+						}, // CodeCanvas: the canvas engine, loaded with amdX
 						'vs/base/~',
 						'vs/base/parts/*/~',
 						'vs/platform/*/~',
@@ -2408,6 +2413,14 @@ export default defineConfig(
 						'@vscode/*',
 						'@parcel/*',
 						'@playwright/*',
+						'*' // node modules
+					]
+				},
+				{
+					// CodeCanvas: the canvas editor's end-to-end check
+					'target': 'test/codecanvas/**',
+					'restrictions': [
+						'test/codecanvas/**',
 						'*' // node modules
 					]
 				},

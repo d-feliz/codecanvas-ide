@@ -4,14 +4,14 @@
  *--------------------------------------------------------------------------------------------*/
 
 // End-to-end check of the canvas editor in a running CodeCanvas window, on the project that
-// run.cjs prepares (the CodeCanvas sample, plus a tsconfig.json path alias). Run it through run.cjs.
-const { chromium } = require('playwright');
-const os = require('os');
-const path = require('path');
+// run.ts prepares (the CodeCanvas sample, plus a tsconfig.json path alias). Run it through run.ts.
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+import { chromium } from 'playwright';
 
 const screenshots = process.argv[2] ?? os.tmpdir();
 const projectFolder = process.argv[3];
-const fs = require('fs');
 const cartLayoutFile = projectFolder && path.join(projectFolder, '.codecanvas', 'cart.ts.json');
 const assert = (condition, message) => {
 	console.log(condition ? 'ok:' : 'FAIL:', message);

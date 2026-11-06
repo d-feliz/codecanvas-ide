@@ -4,14 +4,14 @@
  *--------------------------------------------------------------------------------------------*/
 
 // Runs the canvas end-to-end check in one go: copies the CodeCanvas sample project (from the CodeCanvas
-// repo, checked out next to this one), starts the app on it, runs canvas.e2e.cjs, and quits the app.
-//   node test/codecanvas/run.cjs                 # the development build (scripts/code.sh)
-//   node test/codecanvas/run.cjs --app <path>    # a packaged app, e.g. ../VSCode-darwin-arm64/CodeCanvas.app
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+// repo, checked out next to this one), starts the app on it, runs canvas.e2e.ts, and quits the app.
+//   node test/codecanvas/run.ts                 # the development build (scripts/code.sh)
+//   node test/codecanvas/run.ts --app <path>    # a packaged app, e.g. ../VSCode-darwin-arm64/CodeCanvas.app
+import { spawn, type ChildProcess } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const repoRoot = path.join(__dirname, '..', '..');
+const repoRoot = path.join(import.meta.dirname, '..', '..');
 const sampleProject = path.join(repoRoot, '..', 'codecanvas', 'apps', 'playground', 'src', 'sample');
 // Short on purpose: macOS limits socket paths (inside --user-data-dir) to 104 characters.
 const workFolder = path.join(repoRoot, '.build', 'e2e');
@@ -41,7 +41,7 @@ function prepareProject() {
 	return project;
 }
 
-function startApp(project) {
+function startApp(project: string): ChildProcess {
 	const appArgs = [
 		'--user-data-dir', path.join(workFolder, 'user'),
 		'--extensions-dir', path.join(workFolder, 'ext'),
@@ -55,16 +55,16 @@ function startApp(project) {
 }
 
 /** Ask the app to quit like a user would; stop it and its helpers only if it doesn't within 20 seconds. */
-async function quitApp(app) {
+async function quitApp(app: ChildProcess) {
 	if (app.exitCode !== null) {
 		return;
 	}
 	const exited = new Promise(resolve => app.once('exit', () => resolve(true)));
-	process.kill(app.pid, 'SIGTERM');
+	process.kill(app.pid!, 'SIGTERM');
 	const quitInTime = await Promise.race([exited, new Promise(resolve => setTimeout(() => resolve(false), 20000))]);
 	if (!quitInTime) {
 		try {
-			process.kill(-app.pid, 'SIGKILL');
+			process.kill(-app.pid!, 'SIGKILL');
 		} catch {
 			// Already gone.
 		}
@@ -94,7 +94,7 @@ async function waitForWindow() {
 		await waitForWindow();
 		// Let the extension host and TypeScript start before the checks.
 		await new Promise(resolve => setTimeout(resolve, 4000));
-		const check = spawn(process.execPath, [path.join(__dirname, 'canvas.e2e.cjs'), path.join(workFolder, 'screenshots'), project], { cwd: repoRoot, stdio: 'inherit' });
+		const check = spawn(process.execPath, [path.join(import.meta.dirname, 'canvas.e2e.ts'), path.join(workFolder, 'screenshots'), project], { cwd: repoRoot, stdio: 'inherit' });
 		exitCode = await new Promise(resolve => check.on('exit', code => resolve(code ?? 1)));
 	} catch (error) {
 		console.error(error.message);

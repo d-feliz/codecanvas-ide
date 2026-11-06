@@ -34,6 +34,9 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   renders blocks with HTML strings).
 - `package.json`, `pnpm-lock.yaml`: the engine, `@codecanvas/engine`, linked from the CodeCanvas repo.
 - `test/codecanvas/`: end-to-end check of the canvas editor.
+- `eslint.config.js`, `build/hygiene.ts`: accept the CodeCanvas copyright header on the fork's own
+  files, allow the engine import in workbench contributions, and give `test/codecanvas` import rules.
+- `build/lib/i18n.resources.json`: the canvas's strings.
 - This file.
 
 ## Build and run (macOS)
@@ -85,11 +88,11 @@ runs after the app is complete and only concerns Copilot's search; the app works
 ## Testing the canvas editor
 
 One command copies the CodeCanvas sample project (plus a `tsconfig.json` path alias) to `.build/e2e`,
-starts the app on it with a separate profile, runs `test/codecanvas/canvas.e2e.cjs`, and quits the app:
+starts the app on it with a separate profile, runs `test/codecanvas/canvas.e2e.ts`, and quits the app:
 
 ```sh
-node test/codecanvas/run.cjs                                              # development build
-node test/codecanvas/run.cjs --app ../VSCode-darwin-arm64/CodeCanvas.app  # packaged app
+node test/codecanvas/run.ts                                               # development build
+node test/codecanvas/run.ts --app ../VSCode-darwin-arm64/CodeCanvas.app   # packaged app
 ```
 
 Quit other CodeCanvas windows first: the check uses debugging port 9333. If it fails, screenshots

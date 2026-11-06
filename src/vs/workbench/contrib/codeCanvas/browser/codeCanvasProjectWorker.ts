@@ -4,8 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { IWebWorkerServerRequestHandler } from '../../../../base/common/worker/webWorker.js';
-import type { ProjectServer } from './codeCanvasEngine.js';
-import { Engine, loadEngine } from './codeCanvasEngine.js';
+import { Engine, loadEngine, type ProjectServer } from './codeCanvasEngine.js';
 
 /**
  * Runs the canvas engine's TypeScript work (usage links between blocks, renames) off the window's

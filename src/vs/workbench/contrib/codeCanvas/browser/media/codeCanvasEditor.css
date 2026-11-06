@@ -17,7 +17,7 @@
 	--cc-muted: var(--vscode-descriptionForeground);
 	--cc-accent: var(--vscode-focusBorder);
 	--cc-danger: var(--vscode-editorError-foreground);
-	font-family: var(--vscode-font-family);
+	font-family: inherit; /* the workbench font */
 	/* Like the text editor: no ligatures or contextual alternates (SF Mono draws `[]` as a box with them). */
 	font-feature-settings: "liga" 0, "calt" 0;
 }

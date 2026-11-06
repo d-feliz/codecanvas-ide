@@ -90,7 +90,8 @@ export class CodeCanvasFolderProject extends Disposable {
 				for (const name of relativeNames) {
 					const extendedResource = joinPath(dirname(resource), name.endsWith('.json') ? name : `${name}.json`);
 					const path = isEqualOrParent(extendedResource, this.folder) ? relativePath(this.folder, extendedResource) : undefined;
-					const extendedText = path && !(path in extendedFiles) ? await this.readText(extendedResource) : undefined;
+					const isReadAlready = !!path && extendedFiles[path] !== undefined;
+					const extendedText = path && !isReadAlready ? await this.readText(extendedResource) : undefined;
 					if (path && extendedText !== undefined) {
 						extendedFiles[path] = extendedText;
 						usedConfigFiles.push(extendedResource);
