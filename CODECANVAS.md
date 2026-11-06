@@ -50,6 +50,7 @@ Kept small on purpose, so merging new VS Code versions stays easy:
 - `build/lib/i18n.resources.json`: the canvas's strings.
 - `resources/darwin/code.icns`, `resources/linux/code.png`, `resources/win32/code.ico`: the CodeCanvas
   icon, rendered from `build/codecanvas/icon.svg` with `node build/codecanvas/make-icons.ts` (macOS).
+- `README.md`: about CodeCanvas instead of VS Code, with a screenshot (`build/codecanvas/canvas.png`).
 - This file.
 
 ## Build and run (macOS)
