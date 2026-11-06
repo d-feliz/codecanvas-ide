@@ -44,7 +44,7 @@ const assert = (condition, message) => {
 		await page.keyboard.press('Meta+P');
 		await page.waitForSelector('.quick-input-widget input');
 		await page.keyboard.type(name);
-		await page.waitForTimeout(600);
+		await page.waitForSelector(`.quick-input-list .monaco-list-row.focused[aria-label*="${name}"]`, { timeout: 15000 }).catch(() => { });
 		await page.keyboard.press('Enter');
 	};
 	const acceptDialogIfShown = async () => {

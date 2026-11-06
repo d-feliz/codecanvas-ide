@@ -19,6 +19,8 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   renames are computed by the engine in a worker (`codeCanvasProjectWorkerMain`), so the window only
   parses the open file. A rename that changes several files is one workspace edit. Block positions are saved in `.codecanvas/` in the workspace folder.
 - `build/next/index.ts`: bundles that worker in production builds.
+- `build/gulpfile.vscode.ts`: packages the engine's runtime files. The dependency list comes from
+  the pnpm lockfile, which leaves out `link:` dependencies such as the engine.
 - `api/browser/mainThreadEditorTabs.ts`: extensions see a canvas tab as a text tab of its file.
   The TypeScript extension only checks files open in text tabs; without this, a file shown only as a
   canvas would get no errors.
@@ -60,6 +62,21 @@ Notes:
 - The install log shows build errors for an old `fsevents` under `glob-watcher`. It's an optional
   dependency of gulp's file watcher; the build doesn't need it.
 
+## Packaging the app (macOS)
+
+After `pnpm run compile` (and the engine build):
+
+```sh
+pnpm run gulp vscode-darwin-arm64     # or vscode-darwin-arm64-min for a minified build
+```
+
+The app is written next to this repo, to `../VSCode-darwin-arm64/CodeCanvas.app` (about 1.4 GB). It
+isn't signed. To repackage without compiling again, run `pnpm run gulp vscode-darwin-arm64-ci`.
+
+At the current upstream version the task ends with an error from `prepareBuiltInCopilotRipgrepShim`
+(it looks for `@github/copilot/sdk`, which the Copilot package now ships as `copilot-sdk`). That step
+runs after the app is complete and only concerns Copilot's search; the app works.
+
 ## Testing the canvas editor
 
 Start CodeCanvas on a copy of the sample project, with a debugging port, then run the check:
@@ -70,6 +87,9 @@ cp -R ../codecanvas/apps/playground/src/sample .build/dev/sample-project
   --remote-debugging-port=9333 --skip-welcome --disable-workspace-trust .build/dev/sample-project
 node test/codecanvas/canvas.e2e.cjs     # in another terminal
 ```
+
+The same check runs against a packaged app: start `../VSCode-darwin-arm64/CodeCanvas.app/Contents/MacOS/CodeCanvas`
+with the same arguments (use a separate `--user-data-dir`).
 
 ## Updating from VS Code
 
