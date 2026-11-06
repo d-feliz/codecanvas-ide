@@ -17,7 +17,12 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   own document with the other lines hidden, so IntelliSense, hovers and error squiggles work there.
   Errors on blocks come from Problems (the TypeScript extension). Usage links between blocks and
   renames are computed by the engine in a worker (`codeCanvasProjectWorkerMain`), so the window only
-  parses the open file. A rename that changes several files is one workspace edit. Block positions are saved in `.codecanvas/` in the workspace folder.
+  parses the open file. A rename that changes several files is one workspace edit. The project
+  covers the folder's TypeScript files (found with VS Code's file search, so `.gitignore` and the
+  exclude settings apply; up to 10,000) and follows its `tsconfig.json` or `jsconfig.json` (path
+  aliases, `baseUrl`, relative `extends`). Block positions are saved in `.codecanvas/` in the
+  workspace folder once you arrange something; until then (when you only open a file) they stay in
+  VS Code's workspace storage, so the repo gets no new files.
 - `build/next/index.ts`: bundles that worker in production builds.
 - `build/gulpfile.vscode.ts`: packages the engine's runtime files. The dependency list comes from
   the pnpm lockfile, which leaves out `link:` dependencies such as the engine.
@@ -79,17 +84,16 @@ runs after the app is complete and only concerns Copilot's search; the app works
 
 ## Testing the canvas editor
 
-Start CodeCanvas on a copy of the sample project, with a debugging port, then run the check:
+One command copies the CodeCanvas sample project (plus a `tsconfig.json` path alias) to `.build/e2e`,
+starts the app on it with a separate profile, runs `test/codecanvas/canvas.e2e.cjs`, and quits the app:
 
 ```sh
-cp -R ../codecanvas/apps/playground/src/sample .build/dev/sample-project
-./scripts/code.sh --user-data-dir .build/dev/user --extensions-dir .build/dev/ext \
-  --remote-debugging-port=9333 --skip-welcome --disable-workspace-trust .build/dev/sample-project
-node test/codecanvas/canvas.e2e.cjs     # in another terminal
+node test/codecanvas/run.cjs                                              # development build
+node test/codecanvas/run.cjs --app ../VSCode-darwin-arm64/CodeCanvas.app  # packaged app
 ```
 
-The same check runs against a packaged app: start `../VSCode-darwin-arm64/CodeCanvas.app/Contents/MacOS/CodeCanvas`
-with the same arguments (use a separate `--user-data-dir`).
+Quit other CodeCanvas windows first: the check uses debugging port 9333. If it fails, screenshots
+and the app's log are in `.build/e2e`.
 
 ## Updating from VS Code
 
