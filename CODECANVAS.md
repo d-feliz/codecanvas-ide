@@ -32,15 +32,18 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   editor on such a block shows VS Code's own conflict actions (Accept Current / Incoming / Both,
   Resolve in Merge Editor) next to the canvas's Keep current / incoming / both.
 - `build/next/index.ts`: bundles that worker in production builds.
-- `build/gulpfile.vscode.ts`: packages the engine's runtime files. The dependency list comes from
-  the pnpm lockfile, which leaves out `link:` dependencies such as the engine.
+- `build/gulpfile.vscode.ts`: packages the engine's bundle. The engine is a devDependency, so the
+  bundle (which includes TypeScript) ships without the package's own dependencies.
 - `api/browser/mainThreadEditorTabs.ts`: extensions see a canvas tab as a text tab of its file.
   The TypeScript extension only checks files open in text tabs; without this, a file shown only as a
   canvas would get no errors.
 - `workbench.common.main.ts`: imports that contribution.
 - `workbench.html`, `workbench-dev.html`: allow the `codecanvas` Trusted Types policy (the engine
   renders blocks with HTML strings).
-- `package.json`, `pnpm-lock.yaml`: the engine, `@codecanvas/engine`, linked from the CodeCanvas repo.
+- `package.json`, `pnpm-lock.yaml`: the engine, [`@codecanvas-ide/engine`](https://www.npmjs.com/package/@codecanvas-ide/engine)
+  from npm.
+- `pnpm-workspace.yaml`: the engine is exempt from the 7-day minimum package age, so a new engine
+  release can be used at once.
 - `test/codecanvas/`: end-to-end check of the canvas editor.
 - `eslint.config.js`, `build/hygiene.ts`: accept the CodeCanvas copyright header on the fork's own
   files, allow the engine import in workbench contributions, and give `test/codecanvas` import rules.
@@ -51,15 +54,8 @@ Kept small on purpose, so merging new VS Code versions stays easy:
 
 ## Build and run (macOS)
 
-Needs Xcode command line tools, Python 3, and about 6 GB of disk. The engine comes from the
-[CodeCanvas repo](https://github.com/d-feliz/codecanvas), checked out next to this one:
-
-```sh
-git clone https://github.com/d-feliz/codecanvas ../codecanvas
-(cd ../codecanvas && npm install && npm run build -w @codecanvas/engine)
-```
-
-Rebuild the engine after changing it; reload the CodeCanvas window to pick it up. Then:
+Needs Xcode command line tools, Python 3, and about 6 GB of disk. The engine comes from npm as
+`@codecanvas-ide/engine`; its source is in the [CodeCanvas repo](https://github.com/d-feliz/codecanvas).
 
 ```sh
 nvm install                 # the Node version in .nvmrc (currently 24.22.1)
@@ -77,12 +73,16 @@ Notes:
   `./scripts/code.sh --user-data-dir .build/dev/user --extensions-dir .build/dev/ext`.
   Keep that path short: macOS limits socket paths to 104 characters, and a long
   `--user-data-dir` fails with `listen EINVAL`.
+- To try engine changes before publishing them, link a local checkout of the CodeCanvas repo:
+  `pnpm link ../codecanvas/packages/engine` after `npm run build -w @codecanvas-ide/engine` there.
+  Rebuild the engine after each change and reload the window. `pnpm ci` goes back to the published
+  version.
 - The install log shows build errors for an old `fsevents` under `glob-watcher`. It's an optional
   dependency of gulp's file watcher; the build doesn't need it.
 
 ## Packaging the app (macOS)
 
-After `pnpm run compile` (and the engine build):
+After `pnpm run compile`:
 
 ```sh
 pnpm run gulp vscode-darwin-arm64     # or vscode-darwin-arm64-min for a minified build
@@ -100,7 +100,8 @@ removes files in `extensions/copilot/node_modules`, and packaging fails if one d
 
 ## Testing the canvas editor
 
-One command copies the CodeCanvas sample project (plus a `tsconfig.json` path alias, and a git repo
+One command copies the CodeCanvas sample project (from the CodeCanvas repo, checked out next to
+this one as `../codecanvas`) (plus a `tsconfig.json` path alias, and a git repo
 whose last merge left a conflict in `discounts.ts`) to `.build/e2e`,
 starts the app on it with a separate profile, runs `test/codecanvas/canvas.e2e.ts`, and quits the app:
 

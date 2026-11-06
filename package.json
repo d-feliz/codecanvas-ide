@@ -109,7 +109,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
-    "@codecanvas/engine": "link:../codecanvas/packages/engine",
     "@devcontainers/cli": "0.88.0",
     "@github/copilot-sdk": "1.0.29-preview.8",
     "@hpke/core": "^1.9.0",
@@ -182,6 +181,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.304",
+    "@codecanvas-ide/engine": "0.1.0",
     "@eslint/compat": "^2.1.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@openai/codex": "0.163.0",

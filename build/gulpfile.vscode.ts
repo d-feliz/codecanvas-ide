@@ -250,9 +250,9 @@ function packageTask(platform: string, arch: string, sourceFolderName: string, d
 			.pipe(filter(depFilterPattern))
 			.pipe(util.cleanNodeModules(path.join(import.meta.dirname, '.moduleignore')))
 			.pipe(util.cleanNodeModules(path.join(import.meta.dirname, `.moduleignore.${process.platform}`)));
-		// CodeCanvas: the engine is a `link:` dependency (the CodeCanvas repo, checked out next to this
-		// one), which the lockfile-based list above leaves out. Ship its runtime files.
-		const codeCanvasEngine = gulp.src(['node_modules/@codecanvas/engine/package.json', 'node_modules/@codecanvas/engine/dist/codecanvas-engine.js'], { base: '.' });
+		// CodeCanvas: the engine is a devDependency so its npm dependencies (a second TypeScript) stay
+		// out of the app; its bundle already includes TypeScript. Ship only the bundle.
+		const codeCanvasEngine = gulp.src(['node_modules/@codecanvas-ide/engine/package.json', 'node_modules/@codecanvas-ide/engine/dist/codecanvas-engine.js'], { base: '.' });
 		ensureCopilotPlatformPackage(platform, arch);
 		const copilotRuntimePrebuilds = gulp.src(getCopilotRuntimePrebuildFiles(platform, arch), { base: '.', dot: true, allowEmpty: true });
 		ensureOSProxyResolverPlatformPackage(platform, arch);

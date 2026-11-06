@@ -1965,7 +1965,7 @@ export default defineConfig(
 					'restrictions': [
 						{
 							'when': 'hasBrowser',
-							'pattern': '@codecanvas/engine/**'
+							'pattern': '@codecanvas-ide/engine/**'
 						}, // CodeCanvas: the canvas engine, loaded with amdX
 						'vs/base/~',
 						'vs/base/parts/*/~',

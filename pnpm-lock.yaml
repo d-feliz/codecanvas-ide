@@ -30,9 +30,6 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.82.0
         version: 0.82.0(zod@4.4.3)
-      '@codecanvas/engine':
-        specifier: link:../codecanvas/packages/engine
-        version: link:../codecanvas/packages/engine
       '@devcontainers/cli':
         specifier: 0.88.0
         version: 0.88.0
@@ -244,6 +241,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 0.3.304
         version: 0.3.304(@anthropic-ai/sdk@0.82.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
+      '@codecanvas-ide/engine':
+        specifier: 0.1.0
+        version: 0.1.0
       '@eslint/compat':
         specifier: ^2.1.0
         version: 2.1.0(eslint@10.8.0)
@@ -1688,6 +1688,9 @@ packages:
 
   '@chevrotain/types@11.1.2':
     resolution: {integrity: sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw==}
+
+  '@codecanvas-ide/engine@0.1.0':
+    resolution: {integrity: sha512-I/zkPeehCYL2WTj8OKaCnkMeA2NUcwHeNxWU5XZfXewuSqQlgsyzdBKEzWFFNUzMSj6J1N+3FqN51Ok73pPQCg==}
 
   '@csstools/color-helpers@6.0.2':
     resolution: {integrity: sha512-LMGQLS9EuADloEFkcTBR3BwV/CGHV7zyDxVRtVDTwdI2Ca4it0CCVTT9wCkxSgokjE5Ho41hEPgb8OEUwoXr6Q==}
@@ -9855,6 +9858,10 @@ snapshots:
       css-tree: 3.1.0
 
   '@chevrotain/types@11.1.2': {}
+
+  '@codecanvas-ide/engine@0.1.0':
+    dependencies:
+      typescript: 5.9.3
 
   '@csstools/color-helpers@6.0.2': {}
 

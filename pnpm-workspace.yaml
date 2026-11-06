@@ -60,6 +60,7 @@ engineStrict: false
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   - '@anthropic-ai/*'
+  - '@codecanvas-ide/*'
   - '@github/copilot*'
   - '@openai/codex*'
   - '@playwright/*'
