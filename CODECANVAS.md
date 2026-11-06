@@ -87,6 +87,9 @@ At the current upstream version the task ends with an error from `prepareBuiltIn
 (it looks for `@github/copilot/sdk`, which the Copilot package now ships as `copilot-sdk`). That step
 runs after the app is complete and only concerns Copilot's search; the app works.
 
+Quit CodeCanvas (including a development window) before packaging: the Copilot CLI it runs adds and
+removes files in `extensions/copilot/node_modules`, and packaging fails if one disappears mid-copy.
+
 ## Testing the canvas editor
 
 One command copies the CodeCanvas sample project (plus a `tsconfig.json` path alias) to `.build/e2e`,
