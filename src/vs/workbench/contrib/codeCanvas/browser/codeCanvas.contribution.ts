@@ -40,7 +40,7 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration).regis
 		[CODE_CANVAS_DEFAULT_SETTING]: {
 			type: 'boolean',
 			default: true,
-			markdownDescription: localize('codeCanvas.openAsCanvas', "Open TypeScript files as a canvas. When off, they open as text and the canvas is in **Open With…** and the editor title bar."),
+			markdownDescription: localize('codeCanvas.openAsCanvasSetting', "Open TypeScript files as a canvas. When off, they open as text and the canvas is in **Open With…** and the editor title bar."),
 		},
 	},
 });
