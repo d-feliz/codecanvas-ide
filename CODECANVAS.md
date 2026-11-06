@@ -26,6 +26,9 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   "Show Changes" (title bar) compares the file with its committed version from source control (the
   same one the gutter's change bars use): unchanged blocks are desaturated, added and changed blocks
   get a chip, removed blocks show in red where they were, and the block editor becomes an inline diff.
+  A file with merge conflicts shows its current side, with the conflicted blocks marked; the block
+  editor on such a block shows VS Code's own conflict actions (Accept Current / Incoming / Both,
+  Resolve in Merge Editor) next to the canvas's Keep current / incoming / both.
 - `build/next/index.ts`: bundles that worker in production builds.
 - `build/gulpfile.vscode.ts`: packages the engine's runtime files. The dependency list comes from
   the pnpm lockfile, which leaves out `link:` dependencies such as the engine.
@@ -95,7 +98,8 @@ removes files in `extensions/copilot/node_modules`, and packaging fails if one d
 
 ## Testing the canvas editor
 
-One command copies the CodeCanvas sample project (plus a `tsconfig.json` path alias) to `.build/e2e`,
+One command copies the CodeCanvas sample project (plus a `tsconfig.json` path alias, and a git repo
+whose last merge left a conflict in `discounts.ts`) to `.build/e2e`,
 starts the app on it with a separate profile, runs `test/codecanvas/canvas.e2e.ts`, and quits the app:
 
 ```sh

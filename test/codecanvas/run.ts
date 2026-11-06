@@ -36,9 +36,24 @@ function prepareProject() {
 	].join('\n'));
 	// A git repo with one commit, so "Show Changes" has a committed version to compare with.
 	const git = (...gitArgs: string[]) => execFileSync('git', ['-c', 'user.name=CodeCanvas e2e', '-c', 'user.email=e2e@codecanvas.invalid', ...gitArgs], { cwd: project, stdio: 'ignore' });
+	const discounts = path.join(project, 'discounts.ts');
+	const writeDiscounts = (rate: string, extra = '') => fs.writeFileSync(discounts, `export function seasonalDiscount(amount: number): number {\n  return amount * ${rate};\n}\n${extra}`);
+	writeDiscounts('0.95');
 	git('init', '-q');
 	git('add', '-A');
 	git('commit', '-q', '-m', 'Sample project');
+	// A merge that leaves conflict markers in discounts.ts.
+	git('checkout', '-q', '-b', 'sale');
+	writeDiscounts('0.8', `\nexport function flashSale(amount: number): number {\n  return amount / 2;\n}\n`);
+	git('commit', '-q', '-am', 'Bigger discounts');
+	git('checkout', '-q', '-');
+	writeDiscounts('0.9');
+	git('commit', '-q', '-am', 'Smaller discount');
+	try {
+		git('merge', 'sale');
+	} catch {
+		// Expected: the merge stops with a conflict.
+	}
 	const userSettings = path.join(workFolder, 'user', 'User');
 	fs.mkdirSync(userSettings, { recursive: true });
 	fs.writeFileSync(path.join(userSettings, 'settings.json'), JSON.stringify({ 'git.openRepositoryInParentFolders': 'never' }));

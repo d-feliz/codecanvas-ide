@@ -226,6 +226,33 @@ const assert = (condition, message) => {
 	await page.waitForTimeout(300);
 	assert(await page.locator(`${canvas} [class*="cc-diff-"]`).count() === 0, 'hiding changes restores the normal view');
 
+	// a merge conflict (run.ts merged two branches that both changed discounts.ts)
+	await openFile('discounts.ts');
+	await page.waitForSelector('.editor-actions [aria-label*="Open as Canvas"]', { timeout: 10000 });
+	await page.click('.editor-actions [aria-label*="Open as Canvas"]');
+	await page.waitForSelector(`${canvas} .cc-block[data-id="seasonalDiscount"]`, { timeout: 20000 });
+	await page.waitForTimeout(500);
+	assert((await page.locator(`${canvas} .cc-banner:not([hidden])`).innerText()).includes('merge conflict'), 'a file with merge conflicts shows them instead of pausing');
+	assert(await block('seasonalDiscount').locator('.cc-conflict-chip').count() === 1, 'the conflicted block is marked !');
+	assert(await page.locator(`${canvas} .cc-err`).count() === 0, 'errors about the conflict markers themselves are not shown');
+	await page.screenshot({ path: path.join(screenshots, 'canvas-conflict.png') });
+	await selectBlock('seasonalDiscount');
+	await page.locator(`${canvas} .cc-bar button:has-text("Edit")`).click();
+	await page.waitForSelector(`${canvas} .cc-editor .monaco-editor .view-lines`);
+	// Monaco draws spaces as no-break spaces.
+	const conflictEditorText = (await page.locator(`${canvas} .cc-editor .view-lines`).innerText()).replace(/\u00a0/g, ' ');
+	assert(conflictEditorText.includes('<<<<<<<') && conflictEditorText.includes('>>>>>>> sale'), 'Edit shows the conflict markers');
+	const hasAcceptLenses = await page.waitForSelector(`${canvas} .cc-editor .codelens-decoration a:has-text("Accept")`, { timeout: 15000 }).then(() => true, () => false);
+	assert(hasAcceptLenses, "VS Code's Accept Current / Incoming links show in the block editor");
+	await page.screenshot({ path: path.join(screenshots, 'canvas-conflict-editor.png') });
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	await selectBlock('seasonalDiscount');
+	await page.locator(`${canvas} .cc-bar button:has-text("Keep incoming")`).click();
+	await page.waitForTimeout(500);
+	assert(await page.locator(`${canvas} .cc-banner[hidden]`).count() === 1 && await page.locator(`${canvas} .cc-conflict`).count() === 0, 'Keep incoming resolves the conflict');
+	assert(/amount \* 0\.8/.test(await block('seasonalDiscount').locator('.cc-prev').innerText()), "the block now has the incoming side's code");
+
 	console.log('page errors', JSON.stringify(errors));
 	await browser.close().catch(() => { });
 })();
