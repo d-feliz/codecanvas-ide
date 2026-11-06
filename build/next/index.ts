@@ -92,6 +92,7 @@ const workerEntryPoints = [
 	'vs/workbench/services/search/worker/localFileSearchMain',
 	'vs/workbench/contrib/output/common/outputLinkComputerMain',
 	'vs/workbench/contrib/mediaPreview/browser/imageEncoderWorkerMain',
+	'vs/workbench/contrib/codeCanvas/browser/codeCanvasProjectWorkerMain',
 	'vs/workbench/services/textMate/browser/backgroundTokenization/worker/textMateTokenizationWorker.workerMain',
 ];
 

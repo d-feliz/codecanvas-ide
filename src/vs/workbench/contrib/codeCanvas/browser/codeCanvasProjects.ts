@@ -14,7 +14,11 @@ import { IFileService, IFileStat } from '../../../../platform/files/common/files
 import { createDecorator, IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_LAYOUT_FOLDER } from '../common/codeCanvas.js';
-import { loadEngine, Project } from './codeCanvasEngine.js';
+import { FileAccess } from '../../../../base/common/network.js';
+import { WebWorkerDescriptor } from '../../../../platform/webWorker/browser/webWorkerDescriptor.js';
+import { IWebWorkerService } from '../../../../platform/webWorker/browser/webWorkerService.js';
+import { loadEngine, RemoteProject } from './codeCanvasEngine.js';
+import type { CodeCanvasProjectWorker } from './codeCanvasProjectWorker.js';
 
 /** Folders that never hold the project's own source. */
 const SKIPPED_FOLDERS = new Set(['node_modules', '.git', 'out', 'dist', 'build', '.build', 'coverage', CODE_CANVAS_LAYOUT_FOLDER]);
@@ -32,7 +36,7 @@ export class CodeCanvasFolderProject extends Disposable {
 
 	constructor(
 		readonly folder: URI,
-		readonly project: Project,
+		readonly project: RemoteProject,
 		@IFileService private readonly fileService: IFileService,
 		@IModelService private readonly modelService: IModelService,
 	) {
@@ -72,9 +76,9 @@ export class CodeCanvasFolderProject extends Disposable {
 		if (!path || model.uri.scheme !== this.folder.scheme) {
 			return;
 		}
-		this.project.setFile(path, model.getValue());
+		this.project.setFileText(path, model.getValue());
 		this.modelListeners.set(model.uri.toString(), model.onDidChangeContent(() => {
-			this.project.setFile(path, model.getValue());
+			this.project.setFileText(path, model.getValue());
 			this.notifySoon.schedule();
 		}));
 	}
@@ -83,7 +87,7 @@ export class CodeCanvasFolderProject extends Disposable {
 		try {
 			const content = await this.fileService.readFile(resource);
 			if (!this.modelService.getModel(resource)) {
-				this.project.setFile(path, content.value.toString());
+				this.project.setFileText(path, content.value.toString());
 				this.notifySoon.schedule();
 			}
 		} catch {
@@ -111,6 +115,7 @@ export class CodeCanvasProjectService extends Disposable implements ICodeCanvasP
 		@IFileService private readonly fileService: IFileService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@ILogService private readonly logService: ILogService,
+		@IWebWorkerService private readonly webWorkerService: IWebWorkerService,
 	) {
 		super();
 	}
@@ -126,9 +131,15 @@ export class CodeCanvasProjectService extends Disposable implements ICodeCanvasP
 	}
 
 	private async createFolderProject(folder: URI): Promise<CodeCanvasFolderProject> {
-		// No standard library: type errors come from VS Code's TypeScript service; usage links don't need it.
 		const [engine, files] = await Promise.all([loadEngine(), this.readSourceFiles(folder)]);
-		const project = new engine.Project(files);
+		// The TypeScript work runs in a worker so a pause in a big file can't stall the window. No standard
+		// library there: type errors come from VS Code's TypeScript service, and usage links don't need it.
+		const worker = this.projects.add(this.webWorkerService.createWorkerClient<CodeCanvasProjectWorker>(new WebWorkerDescriptor({
+			esmModuleLocation: FileAccess.asBrowserUri('vs/workbench/contrib/codeCanvas/browser/codeCanvasProjectWorkerMain.js'),
+			label: 'CodeCanvasProjectWorker',
+		})));
+		const project = new engine.RemoteProject((method, args) => worker.proxy.$call(method, args));
+		project.setFiles(files);
 		return this.projects.add(this.instantiationService.createInstance(CodeCanvasFolderProject, folder, project));
 	}
 

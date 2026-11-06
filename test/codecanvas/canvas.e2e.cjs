@@ -84,6 +84,8 @@ const assert = (condition, message) => {
 	assert(await page.locator(`${canvas} .cc-edge`).count() > 0, 'and usage lines');
 	assert(await page.locator('.editor-actions [aria-label*="Open as Text"]').count() === 1, 'canvas shows the Open as Text button');
 	await page.screenshot({ path: path.join(screenshots, 'canvas-opened.png') });
+	const debugTargets = await (await fetch('http://127.0.0.1:9333/json')).json();
+	assert(debugTargets.some(target => target.type === 'worker' && target.title === 'CodeCanvasProjectWorker'), 'usage links are resolved in a worker');
 
 	// edit a block in Monaco
 	await block('Cart/total').locator('.cc-head').click();

@@ -15,8 +15,10 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   (title bar button, command, and Open With…). The canvas edits the file's text document, so unsaved
   changes, save and undo are shared with the text editor. Blocks are edited in Monaco on the file's
   own document with the other lines hidden, so IntelliSense, hovers and error squiggles work there.
-  Errors on blocks come from Problems (the TypeScript extension). A rename that changes several
-  files is one workspace edit. Block positions are saved in `.codecanvas/` in the workspace folder.
+  Errors on blocks come from Problems (the TypeScript extension). Usage links between blocks and
+  renames are computed by the engine in a worker (`codeCanvasProjectWorkerMain`), so the window only
+  parses the open file. A rename that changes several files is one workspace edit. Block positions are saved in `.codecanvas/` in the workspace folder.
+- `build/next/index.ts`: bundles that worker in production builds.
 - `api/browser/mainThreadEditorTabs.ts`: extensions see a canvas tab as a text tab of its file.
   The TypeScript extension only checks files open in text tabs; without this, a file shown only as a
   canvas would get no errors.
