@@ -11,7 +11,7 @@ import { Emitter, Event } from '../../../base/common/event.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
 import { StudioRectangle, StudioShellInput, StudioShellRectangles, studioShellRectangles } from './studioShellGeometry.js';
 
-export const STUDIO_LAYOUT_STYLE_SETTING = 'workbench.layoutStyle';
+export { STUDIO_LAYOUT_STYLE_SETTING } from '../../common/studio.js';
 
 /** Ids of editors that lie under the floating panels instead of between them (the canvas editor adds its id). */
 export const studioWindowFillingEditorIds = new Set<string>();

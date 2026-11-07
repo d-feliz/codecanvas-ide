@@ -1,6 +1,6 @@
 # Studio: design
 
-Date: 2026-11-07. Status: in progress (steps 1–4 done).
+Date: 2026-11-07. Status: in progress (steps 1–5 done).
 
 Studio is CodeCanvas's own look, instead of VS Code's: floating surfaces over an infinite dotted
 canvas, one accent color (gold), node-style blocks, and Canvas / Code / Split views of a file. The
@@ -16,7 +16,7 @@ Decisions made with the owner:
 - Studio-style blocks for every block kind, in the engine (the playground gets them too).
 - The classic layout stays available with a setting. Studio became the default after step 4, at the
   owner's request (before the polish of step 7).
-- ⌘K opens "Go to anything"; VS Code's ⌘K chords move to ⌘; in Studio.
+- ⌘K opens "Go to anything"; VS Code's ⌘K chords move to ⌘' in Studio (⌘; is taken by Testing).
 
 ## 1. Architecture
 
@@ -62,9 +62,10 @@ Decisions made with the owner:
 
 "Go to anything" (⌘K) shows three groups: nodes in this file (the canvas's blocks), files, and
 actions (add function, open selection in split view, switch theme). `>` lists all commands, as
-today. In Studio, keybindings whose first chord is ⌘K get ⌘; as their first chord instead
-(⌘K ⌘S → ⌘; ⌘S). Before that, check that ⌘; isn't already a first chord in VS Code. The classic
-layout keeps ⌘K.
+today. In Studio, default keybindings whose first chord is ⌘K get ⌘' as their first chord instead
+(⌘K ⌘S → ⌘' ⌘S). ⌘; was the first choice, but VS Code's Testing commands use it as a first chord (15
+of the second chords collide); ⌘' is free in VS Code and its built-in extensions. The user's own
+keybindings are not changed. The classic layout keeps ⌘K.
 
 Studio's own surfaces follow the design closely. VS Code's views get Studio's colors, fonts, radii and
 spacing but keep their own structure (tree icons, extra controls, Copilot's chat).
@@ -138,6 +139,7 @@ Order (each step tested and pushed; Studio is the default since step 4):
    can be told the free area, step 6, Fit and centering still use the whole canvas.)
 4. Studio chrome: top groups, open-files bar, left panel icon row and footer, Assistant header.
    (Split joins Canvas / Code in step 6; the editor's own actions sit in the top bar for now.)
-5. The palette, ⌘K, and the ⌘K chords moved to ⌘;.
+5. The palette, ⌘K, and the ⌘K chords moved to ⌘'. (The actions group has the theme, Assistant,
+   terminal and Show Changes; "Add function" and "Open in split view" join with step 6.)
 6. Code and Split views with the block lane (engine 0.5.0).
 7. Polish against the boards (light theme included), Studio becomes the default, docs.

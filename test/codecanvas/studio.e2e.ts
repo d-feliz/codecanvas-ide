@@ -58,8 +58,16 @@ const assert = (condition, message) => {
 		assert(await isShown('.studio-shell'), 'Studio layout: by default the window uses the Studio shell');
 		assert(await workbenchColor('editor.background') === '#141518', 'and the Studio Dark theme');
 
-		await openFile('cart.ts');
+		// A file the canvas checks never opened, so nothing brings back an earlier position in it.
+		await openFile('catalog.ts');
 		await page.waitForSelector('.code-canvas-editor .cc-block', { timeout: 30000 });
+		const leftPanel = await box('.studio-shell > .part.sidebar');
+		const frame = await box('.code-canvas-editor .cc-frame');
+		const openingZoom = await page.locator('.code-canvas-editor .cc-zoom').innerText();
+		assert(openingZoom === '100%' && frame.x >= leftPanel.x + leftPanel.width, `a file opens at 100%, beside the left panel, not under it (${openingZoom}, file at x ${Math.round(frame.x)})`);
+
+		await openFile('cart.ts');
+		await page.waitForSelector('.code-canvas-editor .cc-block[data-id="Cart"]', { timeout: 30000 });
 		const sideBar = await box('.studio-shell > .part.sidebar');
 		assert(Math.round(sideBar.x) === 12 && Math.round(sideBar.y) === 60, 'the left panel floats 12px from the window edge, below the top bar');
 		assert(!await isShown('.studio-shell > .part.titlebar') && !await isShown('.studio-shell > .part.activitybar') && !await isShown('.part.editor .tabs-container'), 'VS Code\'s title bar, activity bar and editor tabs are hidden');
@@ -76,10 +84,34 @@ const assert = (condition, message) => {
 		assert((await topBarText('.studio-segment.studio-active')) === 'Canvas', 'the view switch shows Canvas for a canvas');
 		const projectButton = await box('.studio-top-bar .studio-project');
 		assert(Math.round(projectButton.y) === 12 && Math.round(projectButton.height) === 36, 'the top bar buttons are 36px high, 12px from the top');
+
+		await page.keyboard.press('Meta+k');
+		await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
+		const groupHeaders = (await page.locator('.quick-input-widget .quick-input-list-separator').allInnerTexts()).map(text => text.toLowerCase());
+		// Only the rows in view are rendered, so the Actions group further down isn't checked here.
+		assert(groupHeaders.includes('nodes in this file') && groupHeaders.includes('files'), '⌘K opens Go to anything, with the file\'s nodes and files');
+		assert(Math.round((await box('.quick-input-widget')).y) === 96, 'below the top bar');
+		await page.keyboard.type('useCoupon');
+		await page.waitForTimeout(500);
+		await page.keyboard.press('Enter');
+		await page.waitForTimeout(800);
+		assert(await page.locator('.code-canvas-editor .cc-block[data-id="Cart/useCoupon"]').evaluate(e => e.classList.contains('cc-sel')), 'picking a node selects it on the canvas');
+		await page.keyboard.press('Meta+k');
+		await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
+		await page.keyboard.type('>');
+		await page.waitForTimeout(800);
+		const commandRows = await page.locator('.quick-input-widget .quick-input-list .monaco-list-row').count();
+		assert((await page.locator('.quick-input-widget input').inputValue()) === '>' && commandRows > 10, 'typing > there lists all commands');
+		await page.keyboard.press('Escape');
+
+		await page.keyboard.press('Meta+Quote');
+		await page.keyboard.press('Meta+s');
+		const shortcutsOpened = await page.waitForSelector('.keybindings-editor', { timeout: 10000 }).then(() => true, () => false);
+		assert(shortcutsOpened, 'VS Code\'s ⌘K chords start with ⌘\' instead: ⌘\' ⌘S opens Keyboard Shortcuts');
+		await page.keyboard.press('Meta+w');
+		await page.waitForTimeout(800);
 		const editor = await box('.studio-shell > .part.editor');
 		assert(Math.round(editor.x) === 0 && Math.round(editor.width) === window.width, 'a canvas lies under the floating panels');
-		const frame = await box('.code-canvas-editor .cc-frame');
-		assert((await page.locator('.code-canvas-editor .cc-zoom').innerText()) === '100%' && frame.x >= sideBar.x + sideBar.width, 'the file opens at 100%, beside the left panel, not under it');
 		const functionGlyph = await page.locator('.code-canvas-editor .cc-block.k-function .cc-glyph').first().evaluate(e => getComputedStyle(e).backgroundColor);
 		assert(functionGlyph === 'rgb(169, 139, 240)', 'blocks take their kind color from the Studio theme');
 		const dock = await box('.code-canvas-editor .cc-dock');

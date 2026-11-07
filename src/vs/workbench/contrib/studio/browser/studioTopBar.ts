@@ -33,6 +33,7 @@ import { ISCMViewService } from '../../scm/common/scm.js';
 import { HoverPosition } from '../../../../base/browser/ui/hover/hoverWidget.js';
 import { ACCOUNTS_ACTIVITY_ID } from '../../../common/activity.js';
 import { createActivityActionBar, StudioSignedInAccount } from './studioAccount.js';
+import { STUDIO_GO_TO_ANYTHING_COMMAND_ID, STUDIO_TOGGLE_THEME_COMMAND_ID } from './studioGoToAnything.js';
 import { studioIcon } from './studioIcons.js';
 
 const TYPESCRIPT_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
@@ -91,7 +92,7 @@ export class StudioTopBar extends Disposable {
 		this.branchButton = this.createButton(leftGroup, 'studio-branch', localize('studio.checkout', "Checkout to…"), () => this.commandService.executeCommand('git.checkout'));
 		this.branchButton.append(studioIcon('branch', 14));
 		this.branchLabel = append(this.branchButton, $('span'));
-		const goToAnything = this.createButton(leftGroup, 'studio-go-to-anything', localize('studio.goToAnything', "Go to anything"), () => this.commandService.executeCommand('workbench.action.quickOpen'));
+		const goToAnything = this.createButton(leftGroup, 'studio-go-to-anything', localize('studio.goToAnything', "Go to anything"), () => this.commandService.executeCommand(STUDIO_GO_TO_ANYTHING_COMMAND_ID));
 		goToAnything.append(studioIcon('search', 14));
 		append(goToAnything, $('span')).textContent = localize('studio.goToAnything', "Go to anything");
 		append(goToAnything, $('span.studio-key')).textContent = '⌘K';
@@ -118,7 +119,7 @@ export class StudioTopBar extends Disposable {
 			button.textContent = label;
 			this.viewModeButtons.set(mode, button);
 		}
-		this.themeButton = this.createButton(rightGroup, 'studio-icon-button', localize('studio.toggleTheme', "Switch between the light and dark theme"), () => this.toggleTheme());
+		this.themeButton = this.createButton(rightGroup, 'studio-icon-button', localize('studio.toggleTheme', "Switch between the light and dark theme"), () => this.commandService.executeCommand(STUDIO_TOGGLE_THEME_COMMAND_ID));
 		this.assistantButton = this.createButton(rightGroup, 'studio-icon-button', localize('studio.toggleAssistant', "Toggle Assistant"), () => this.commandService.executeCommand('workbench.action.toggleAuxiliaryBar'));
 		this.assistantButton.append(studioIcon('assistant', 16));
 		// VS Code's Accounts menu covers the whole pill; the "Sign in" text shows while no one is signed in.
@@ -165,13 +166,6 @@ export class StudioTopBar extends Disposable {
 		clearNode(this.themeButton);
 		const isDark = this.themeService.getColorTheme().type === ColorScheme.DARK || this.themeService.getColorTheme().type === ColorScheme.HIGH_CONTRAST_DARK;
 		this.themeButton.append(studioIcon(isDark ? 'moon' : 'sun', 16));
-	}
-
-	private async toggleTheme(): Promise<void> {
-		const isDark = this.themeService.getColorTheme().type === ColorScheme.DARK;
-		const studioThemeLabel = isDark ? 'Studio Light' : 'Studio Dark';
-		const studioTheme = (await this.themeService.getColorThemes()).find(theme => theme.label === studioThemeLabel);
-		await this.themeService.setColorTheme(studioTheme, 'auto');
 	}
 
 	private renderAssistantButton(): void {

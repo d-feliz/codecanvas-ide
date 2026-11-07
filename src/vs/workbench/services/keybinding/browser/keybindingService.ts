@@ -19,6 +19,9 @@ import { UserSettingsLabelProvider } from '../../../../base/common/keybindingLab
 import { KeybindingParser } from '../../../../base/common/keybindingParser.js';
 import { Keybinding, KeyCodeChord, ResolvedKeybinding, ScanCodeChord } from '../../../../base/common/keybindings.js';
 import { IMMUTABLE_CODE_TO_KEY_CODE, KeyCode, KeyCodeUtils, KeyMod, ScanCode, ScanCodeUtils } from '../../../../base/common/keyCodes.js';
+import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
+import { isStudioLayoutStyle } from '../../../common/studio.js';
+import { moveCommandKChordsToQuote } from '../common/studioChords.js';
 import { Disposable, DisposableStore, IDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
 import * as objects from '../../../../base/common/objects.js';
 import { isMacintosh, OperatingSystem, OS } from '../../../../base/common/platform.js';
@@ -196,7 +199,8 @@ export class WorkbenchKeybindingService extends AbstractKeybindingService {
 		@IFileService fileService: IFileService,
 		@IUriIdentityService uriIdentityService: IUriIdentityService,
 		@ILogService logService: ILogService,
-		@IKeyboardLayoutService private readonly keyboardLayoutService: IKeyboardLayoutService
+		@IKeyboardLayoutService private readonly keyboardLayoutService: IKeyboardLayoutService,
+		@IConfigurationService private readonly configurationService: IConfigurationService
 	) {
 		super(contextKeyService, commandService, telemetryService, notificationService, logService);
 
@@ -441,7 +445,8 @@ export class WorkbenchKeybindingService extends AbstractKeybindingService {
 
 	protected _getResolver(): KeybindingResolver {
 		if (!this._cachedResolver) {
-			const defaults = this._resolveKeybindingItems(KeybindingsRegistry.getDefaultKeybindings(), true);
+			const defaultItems = KeybindingsRegistry.getDefaultKeybindings();
+			const defaults = this._resolveKeybindingItems(isStudioLayoutStyle(this.configurationService) ? moveCommandKChordsToQuote(defaultItems) : defaultItems, true);
 			const overrides = this._resolveUserKeybindingItems(this.userKeybindings.keybindings, false);
 			this._cachedResolver = new KeybindingResolver(defaults, overrides, (str) => this._log(str));
 		}

@@ -46,6 +46,8 @@ export const STUDIO_SURFACE_GAP = 8;
 /** The top bar's buttons are 36px high, 12px from the window's top edge. */
 export const STUDIO_TOP_BAR_BUTTON_HEIGHT = 36;
 export const STUDIO_TOP_BAR_HEIGHT = STUDIO_WINDOW_MARGIN + STUDIO_TOP_BAR_BUTTON_HEIGHT;
+/** Where the palette (VS Code's quick input) opens, below the top bar as in the design. */
+export const STUDIO_PALETTE_TOP = 96;
 /** Room for the canvas's dock (bottom center), which the drawer stays above. */
 export const STUDIO_CANVAS_DOCK_HEIGHT = 48;
 export const STUDIO_PANEL_MINIMUM_HEIGHT = 120;

@@ -47,7 +47,10 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   files, editor actions, Canvas / Code, theme, Assistant, account), the left panel's footer and the
   Assistant's header. In Studio, the view icons go on top of the left panel and editor tabs and
   breadcrumbs are off by default (`studioSettingDefaults.ts`).
-- `browser/layout.ts`: uses `StudioShell` instead of the grid in the Studio layout, and turns off Modern
+- `services/keybinding/browser/keybindingService.ts`: in Studio, default ⌘K chords start with ⌘'
+  instead (`studioChords.ts`), since ⌘K opens Studio's Go to anything (`contrib/studio`).
+- `browser/layout.ts`: uses `StudioShell` instead of the grid in the Studio layout, opens the palette
+  below Studio's top bar, and turns off Modern
   UI's card insets there (the shell floats the parts itself).
 - `build/lib/stylelint/vscode-known-variables.json`: the `studio.*` colors.
 - `build/gulpfile.vscode.ts`: packages the engine's bundle. The engine is a devDependency, so the

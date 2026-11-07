@@ -26,8 +26,10 @@ import { IBrowserWorkbenchEnvironmentService } from '../services/environment/bro
 import { IEditorService } from '../services/editor/common/editorService.js';
 import { EditorGroupLayout, GroupActivationReason, GroupOrientation, GroupsOrder, IEditorGroupsService } from '../services/editor/common/editorGroupsService.js';
 import { SerializableGrid, ISerializableView, ISerializedGrid, Orientation, ISerializedNode, ISerializedLeafNode, Direction, IViewSize, Sizing } from '../../base/browser/ui/grid/grid.js';
-import { IWorkbenchGrid, STUDIO_LAYOUT_STYLE_SETTING, StudioShell, studioWindowFillingEditorIds } from './studio/studioShell.js';
+import { IWorkbenchGrid, StudioShell, studioWindowFillingEditorIds } from './studio/studioShell.js';
+import { isStudioLayoutStyle } from '../common/studio.js';
 import { registerStudioSettingDefaults } from './studio/studioSettingDefaults.js';
+import { STUDIO_PALETTE_TOP, STUDIO_TOP_BAR_HEIGHT } from './studio/studioShellGeometry.js';
 import { Part } from './part.js';
 import { IStatusbarService } from '../services/statusbar/browser/statusbar.js';
 import { IFileService } from '../../platform/files/common/files.js';
@@ -254,6 +256,10 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 	}
 
 	private computeContainerOffset(targetWindow: Window) {
+		if (this.isStudioLayout() && targetWindow === mainWindow) {
+			return { top: STUDIO_TOP_BAR_HEIGHT, quickPickTop: STUDIO_PALETTE_TOP };
+		}
+
 		let top = 0;
 		let quickPickTop = 0;
 
@@ -646,7 +652,7 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 
 	/** Read once: switching between Studio and the classic grid takes a window reload. */
 	isStudioLayout(): boolean {
-		this.studioLayout ??= this.configurationService.getValue<string>(STUDIO_LAYOUT_STYLE_SETTING) === 'studio';
+		this.studioLayout ??= isStudioLayoutStyle(this.configurationService);
 		return this.studioLayout;
 	}
 

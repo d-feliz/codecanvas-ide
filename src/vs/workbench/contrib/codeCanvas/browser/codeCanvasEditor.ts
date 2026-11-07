@@ -56,6 +56,16 @@ const blockToRevealByResource = new Map<string, string>();
  * Shows a TypeScript or JavaScript file as the CodeCanvas diagram. Text stays the source of truth: the canvas
  * edits the file's text document, and every change to the document re-renders the canvas.
  */
+export interface CodeCanvasBlockSummary {
+	id: string;
+	name: string;
+	kind: string;
+	detail: string;
+	/** Labels such as `export` or `async`; a type's keyword (`interface`, `type`, `enum`) is one of them. */
+	tags: string[];
+	depth: number;
+}
+
 export class CodeCanvasEditor extends EditorPane {
 
 	static readonly ID = CODE_CANVAS_EDITOR_ID;
@@ -276,6 +286,20 @@ export class CodeCanvasEditor extends EditorPane {
 	override setOptions(options: IEditorOptions | undefined): void {
 		super.setOptions(options);
 		void loadEngine().then(engine => this.revealSelection(engine, options));
+	}
+
+	/** The blocks of the file on the canvas, in file order, for Studio's Go to anything. */
+	getBlocks(): CodeCanvasBlockSummary[] {
+		const fileModel = this.shownFile?.canvas.getModel();
+		if (!fileModel) {
+			return [];
+		}
+		return [...fileModel.blocks.values()].sort((first, second) => first.start - second.start).map(block => ({ id: block.id, name: block.name, kind: block.kind, detail: block.detail, tags: block.tags, depth: block.depth }));
+	}
+
+	/** Selects the block and moves the canvas to it. */
+	revealBlock(id: string): void {
+		this.canvas?.reveal(id);
 	}
 
 	/** Opened at a place in the text (Go to Definition, a search result, a problem): select the block there. */

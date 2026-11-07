@@ -343,3 +343,21 @@
 	background: var(--vscode-studio-raised);
 	color: var(--vscode-studio-strong);
 }
+
+/* ---- Palette (VS Code's quick input, in Studio's style) ---- */
+
+.monaco-workbench.studio-layout .quick-input-widget {
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 16px;
+	background-color: var(--vscode-studio-surface) !important;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+	overflow: hidden;
+}
+
+.monaco-workbench.studio-layout .quick-input-widget .quick-input-list-separator {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--vscode-studio-faint);
+}
