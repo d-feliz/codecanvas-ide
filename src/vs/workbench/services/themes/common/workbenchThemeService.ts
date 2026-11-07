@@ -40,8 +40,9 @@ export enum ThemeSettings {
 }
 
 export namespace ThemeSettingDefaults {
-	export const COLOR_THEME_DARK = 'Dark 2026';
-	export const COLOR_THEME_LIGHT = 'Light 2026';
+	// CodeCanvas: its own Studio themes (extensions/theme-codecanvas-studio) by default.
+	export const COLOR_THEME_DARK = 'Studio Dark';
+	export const COLOR_THEME_LIGHT = 'Studio Light';
 	export const COLOR_THEME_HC_DARK = 'Default High Contrast';
 	export const COLOR_THEME_HC_LIGHT = 'Default High Contrast Light';
 

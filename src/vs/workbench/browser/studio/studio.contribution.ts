@@ -21,7 +21,7 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration).regis
 				localize('workbench.layoutStyle.studio', "Floating panels over the canvas, CodeCanvas's own layout."),
 				localize('workbench.layoutStyle.classic', "VS Code's layout, with the panels side by side."),
 			],
-			default: 'classic',
+			default: 'studio',
 			scope: ConfigurationScope.APPLICATION,
 			markdownDescription: localize('workbench.layoutStyle', "The layout of the window. Takes effect after the window is reloaded."),
 		},

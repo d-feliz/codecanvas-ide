@@ -40,8 +40,8 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   `docs/superpowers/specs/2026-11-07-studio-design.md`): `src/vs/workbench/browser/studio/` (its
   tokens in `studioTokens.ts`, the registered `studio.*` colors, and the bundled Inter and JetBrains
   Mono fonts, SIL OFL), and `extensions/theme-codecanvas-studio/` with the Studio Dark and Studio
-  Light themes. The themes are generated from the tokens with `node build/codecanvas/make-studio-themes.ts`.
-  With `"workbench.layoutStyle": "studio"` (default `"classic"` for now), `StudioShell` replaces the
+  Light themes (the default themes, `services/themes/common/workbenchThemeService.ts`). The themes are generated from the tokens with `node build/codecanvas/make-studio-themes.ts`.
+  With `"workbench.layoutStyle": "studio"` (the default; `"classic"` brings back VS Code's), `StudioShell` replaces the
   workbench grid: the parts float as surfaces, a canvas lies under them, and the panel is a drawer.
   `src/vs/workbench/contrib/studio/` fills the shell's top bar (project, branch, Go to anything, open
   files, editor actions, Canvas / Code, theme, Assistant, account), the left panel's footer and the

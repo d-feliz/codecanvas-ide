@@ -72,7 +72,8 @@ function prepareProject() {
 	}
 	const userSettings = path.join(workFolder, 'user', 'User');
 	fs.mkdirSync(userSettings, { recursive: true });
-	fs.writeFileSync(path.join(userSettings, 'settings.json'), JSON.stringify({ 'git.openRepositoryInParentFolders': 'never' }));
+	// The canvas checks use editor tabs, so they run in the classic layout; studio.e2e.ts switches to Studio.
+	fs.writeFileSync(path.join(userSettings, 'settings.json'), JSON.stringify({ 'git.openRepositoryInParentFolders': 'never', 'workbench.layoutStyle': 'classic' }));
 	fs.mkdirSync(path.join(workFolder, 'screenshots'));
 	return project;
 }

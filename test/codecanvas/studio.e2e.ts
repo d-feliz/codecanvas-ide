@@ -49,12 +49,14 @@ const assert = (condition, message) => {
 
 	// The layout style is read when the window opens, so this switches it and reloads the window.
 	const checkStudioLayout = async () => {
-		await setUserSettings({ 'workbench.colorTheme': 'Studio Dark', 'workbench.layoutStyle': 'studio' });
+		// No layout or theme setting: the defaults.
+		await setUserSettings({ 'workbench.colorTheme': undefined, 'workbench.layoutStyle': undefined });
 		await runCommand('Developer: Reload Window');
 		await page.waitForSelector('.monaco-workbench.studio-layout .studio-shell', { timeout: 60000 });
 		await page.waitForTimeout(4000);
 		const window = page.viewportSize() ?? await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
-		assert(await isShown('.studio-shell'), 'Studio layout: the window uses the Studio shell');
+		assert(await isShown('.studio-shell'), 'Studio layout: by default the window uses the Studio shell');
+		assert(await workbenchColor('editor.background') === '#141518', 'and the Studio Dark theme');
 
 		await openFile('cart.ts');
 		await page.waitForSelector('.code-canvas-editor .cc-block', { timeout: 30000 });

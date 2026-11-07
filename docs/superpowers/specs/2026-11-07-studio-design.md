@@ -14,13 +14,14 @@ Decisions made with the owner:
 - The floating panels hold VS Code's real views, restyled with Studio tokens.
 - The terminal and the rest of the bottom panel are a floating drawer, hidden by default.
 - Studio-style blocks for every block kind, in the engine (the playground gets them too).
-- The classic layout stays available with a setting; Studio becomes the default when it is done.
+- The classic layout stays available with a setting. Studio became the default after step 4, at the
+  owner's request (before the polish of step 7).
 - ⌘K opens "Go to anything"; VS Code's ⌘K chords move to ⌘; in Studio.
 
 ## 1. Architecture
 
-- `workbench.layoutStyle`: `"studio"` | `"classic"`. While Studio is being built the default is
-  `"classic"`; the last step makes it `"studio"`.
+- `workbench.layoutStyle`: `"studio"` (default) | `"classic"`. Studio Dark and Studio Light are the
+  default themes.
 - VS Code's `Layout` (`src/vs/workbench/browser/layout.ts`) talks to its grid through about ten
   methods (`setViewVisible`, `isViewVisible`, `getViewSize`, `resizeView`, `moveView`, `moveViewTo`,
   `getViewCachedVisibleSize`, `getNeighborViews`, `edgeSnapping`, `layout`). `StudioShell`, in
@@ -129,7 +130,7 @@ Tests:
 - Side by side: the desktop check takes 1440×900 screenshots of Canvas, Code, Split, Light and the
   palette; a comparison page puts each next to its design board.
 
-Order (each step tested and pushed; classic stays the default until step 7):
+Order (each step tested and pushed; Studio is the default since step 4):
 
 1. Tokens, the two themes, the fonts.
 2. Engine: Studio blocks, glyphs, frame, links, selected-block toolbar, dock, minimap (engine 0.4.0).
