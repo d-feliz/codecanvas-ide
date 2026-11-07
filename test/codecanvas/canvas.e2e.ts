@@ -192,6 +192,14 @@ const assert = (condition, message) => {
 	const javaScriptRefsLinked = await page.waitForFunction(selector => document.querySelector(selector)?.textContent?.includes('math.ts'), `${canvas} .cc-refs`, { timeout: 10000 }).then(() => true, () => false);
 	assert(javaScriptRefsLinked, 'and its usages link to blocks in TypeScript files');
 
+	// React files: the language label, component and state blocks
+	await openFile('CartPage.tsx');
+	const reactOpensWithComponents = await page.waitForSelector(`${canvas} .cc-block.k-component[data-id="CartPage"]`, { timeout: 15000 }).then(() => true, () => false);
+	assert(reactOpensWithComponents, 'a React file shows its components as component blocks');
+	assert(await page.locator(`${canvas} .cc-block.k-state[data-id="CartPage/coupon"]`).count() === 1, 'and its useState as a state block');
+	assert((await page.locator(`${canvas} .cc-bar .cc-language`).innerText()) === 'React TSX', 'the canvas toolbar says React TSX');
+	await page.screenshot({ path: path.join(screenshots, 'canvas-react.png') });
+
 	await openFile('pricing.ts');
 	await page.waitForSelector(`${canvas} .cc-block[data-id="applyDiscount"]`, { timeout: 15000 });
 	await selectBlock('applyDiscount');

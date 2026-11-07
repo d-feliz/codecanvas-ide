@@ -16,6 +16,10 @@ Everything else (the explorer, search, source control, the terminal, extensions)
 - **Open a TypeScript or JavaScript file as a canvas.** That is the default; "Open as Text" in the
   title bar switches to the text editor, and the setting `codeCanvas.openFilesAsCanvas` turns the
   default off. JavaScript works the same way, without the types (CommonJS `require()` too).
+- **Work with React.** React files are recognized by themselves, and the canvas toolbar shows the
+  language (JS, TS, React JS/TS/JSX/TSX). Components are their own blocks, each `useState` is a
+  state block inside its component, `<Child />` draws a line to the child, and components are laid
+  out as a tree.
 - **Edit a block** by double-clicking it. A Monaco editor opens on the block's own lines of the
   file, so IntelliSense, hovers and error squiggles work as in a text editor. Undo, save and unsaved
   changes are shared with the text editor.

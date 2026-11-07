@@ -25,7 +25,7 @@ function prepareProject() {
 	fs.rmSync(workFolder, { recursive: true, force: true });
 	const project = path.join(workFolder, 'sample-project');
 	fs.cpSync(sampleProject, project, { recursive: true });
-	fs.writeFileSync(path.join(project, 'tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true, paths: { '@shop/*': ['./*'] } } }, null, 2));
+	fs.writeFileSync(path.join(project, 'tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true, jsx: 'preserve', paths: { '@shop/*': ['./*'] } } }, null, 2));
 	fs.writeFileSync(path.join(project, 'checkout.ts'), [
 		`import { applyDiscount } from '@shop/pricing';`,
 		`import { formatReceipt } from '@shop/receipts';`,
