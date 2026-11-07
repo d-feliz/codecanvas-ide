@@ -1,0 +1,91 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) CodeCanvas contributors. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.monaco-workbench .studio-shell {
+	position: relative;
+	overflow: hidden;
+	background-color: var(--vscode-studio-canvas);
+	background-image: radial-gradient(var(--vscode-studio-dot) 1px, transparent 1.2px);
+	background-size: 22px 22px;
+}
+
+.monaco-workbench .studio-shell > .studio-part {
+	position: absolute;
+	box-sizing: border-box;
+}
+
+.monaco-workbench .studio-shell > .studio-editor {
+	z-index: 0;
+}
+
+/* The ring is a shadow, not a border, so the part's content keeps the full size it is laid out with. */
+.monaco-workbench .studio-shell > .studio-floating {
+	z-index: 10;
+	overflow: hidden;
+	border-radius: 12px;
+	background-color: var(--vscode-studio-panel) !important;
+	box-shadow: 0 0 0 1px var(--vscode-studio-border), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Any editor but a canvas is a surface between the panels. */
+.monaco-workbench .studio-shell > .studio-editor:not(.studio-editor-fills-window) {
+	overflow: hidden;
+	border-radius: 12px;
+	box-shadow: 0 0 0 1px var(--vscode-studio-border), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.monaco-workbench .studio-shell > .studio-floating.studio-joined-to-next {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.monaco-workbench .studio-shell > .studio-floating.studio-joined-to-previous {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+
+.monaco-workbench .studio-shell > .part.panel.studio-floating {
+	z-index: 12;
+}
+
+/* The status bar becomes two pills in the bottom corners; the room between them belongs to the canvas. */
+.monaco-workbench .studio-shell > .part.statusbar.studio-status-pills {
+	z-index: 11;
+	justify-content: space-between;
+	overflow: visible;
+	pointer-events: none;
+	background-color: transparent !important;
+}
+
+.monaco-workbench .studio-shell > .part.statusbar.studio-status-pills::after {
+	display: none;
+}
+
+.monaco-workbench .studio-shell > .part.statusbar.studio-status-pills > .left-items,
+.monaco-workbench .studio-shell > .part.statusbar.studio-status-pills > .right-items {
+	flex-grow: 0;
+	flex-wrap: nowrap;
+	overflow: hidden;
+	max-width: 45%;
+	pointer-events: auto;
+	border-radius: 8px;
+	background-color: var(--vscode-studio-surface);
+	color: var(--vscode-studio-muted);
+	box-shadow: 0 0 0 1px var(--vscode-studio-border);
+}
+
+.monaco-workbench .studio-shell > .part.statusbar.studio-status-pills > .left-items:empty,
+.monaco-workbench .studio-shell > .part.statusbar.studio-status-pills > .right-items:empty {
+	display: none;
+}
+
+/* A canvas lies under the panels: keep its tabs in the free part of the window. */
+.monaco-workbench .studio-shell > .part.editor.studio-editor-fills-window .editor-group-container > .title {
+	margin-left: calc(var(--studio-free-left) + 8px);
+	margin-right: calc(var(--studio-free-right) + 8px);
+	margin-top: 12px;
+	border-radius: 10px;
+	overflow: hidden;
+}

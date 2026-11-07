@@ -26,6 +26,7 @@ import { IBrowserWorkbenchEnvironmentService } from '../services/environment/bro
 import { IEditorService } from '../services/editor/common/editorService.js';
 import { EditorGroupLayout, GroupActivationReason, GroupOrientation, GroupsOrder, IEditorGroupsService } from '../services/editor/common/editorGroupsService.js';
 import { SerializableGrid, ISerializableView, ISerializedGrid, Orientation, ISerializedNode, ISerializedLeafNode, Direction, IViewSize, Sizing } from '../../base/browser/ui/grid/grid.js';
+import { IWorkbenchGrid, STUDIO_LAYOUT_STYLE_SETTING, StudioShell, studioWindowFillingEditorIds } from './studio/studioShell.js';
 import { Part } from './part.js';
 import { IStatusbarService } from '../services/statusbar/browser/statusbar.js';
 import { IFileService } from '../../platform/files/common/files.js';
@@ -117,7 +118,8 @@ enum LayoutClasses {
 	MODERN_UI = 'modern-ui',
 	MODERN_UI_COMPACT = 'modern-ui-compact',
 	// Module-specific gate shared with the Agents workbench.
-	MODERN_UI_TABS = 'modern-ui-tabs'
+	MODERN_UI_TABS = 'modern-ui-tabs',
+	STUDIO_LAYOUT = 'studio-layout'
 }
 
 interface IPathToOpen extends IPath {
@@ -280,7 +282,8 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 	private readonly parts = new Map<string, Part>();
 
 	private initialized = false;
-	private workbenchGrid!: SerializableGrid<ISerializableView>;
+	private workbenchGrid!: IWorkbenchGrid;
+	private studioLayout: boolean | undefined;
 
 	private titleBarPartView!: ISerializableView;
 	private bannerPartView!: ISerializableView;
@@ -633,7 +636,14 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 	}
 
 	isFloatingPanelsEnabled(): boolean {
-		return this.configurationService.getValue<boolean>(LayoutSettings.MODERN_UI) === true;
+		// Studio floats the parts itself, so the parts must not add Modern UI's card insets too.
+		return !this.isStudioLayout() && this.configurationService.getValue<boolean>(LayoutSettings.MODERN_UI) === true;
+	}
+
+	/** Read once: switching between Studio and the classic grid takes a window reload. */
+	isStudioLayout(): boolean {
+		this.studioLayout ??= this.configurationService.getValue<string>(STUDIO_LAYOUT_STYLE_SETTING) === 'studio';
+		return this.studioLayout;
 	}
 
 	isModernUICompact(): boolean {
@@ -1673,7 +1683,7 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 		};
 
 		const fromJSON = ({ type }: { type: Parts }) => viewMap[type];
-		const workbenchGrid = SerializableGrid.deserialize(
+		const workbenchGrid = this.isStudioLayout() ? this.createStudioShell() : SerializableGrid.deserialize(
 			this.createGridDescriptor(),
 			{ fromJSON },
 			{ proportionalLayout: false }
@@ -1940,6 +1950,7 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 			this.isFloatingPanelsEnabled() ? LayoutClasses.MODERN_UI : undefined,
 			this.isModernUICompact() ? LayoutClasses.MODERN_UI_COMPACT : undefined,
 			this.isFloatingPanelsEnabled() ? LayoutClasses.MODERN_UI_TABS : undefined,
+			this.isStudioLayout() ? LayoutClasses.STUDIO_LAYOUT : undefined,
 			`panel-position-${positionToString(this.getPanelPosition())}`,
 			`panel-alignment-${this.getPanelAlignment()}`
 		]);
@@ -2665,6 +2676,44 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 		}
 
 		return result;
+	}
+
+	private createStudioShell(): StudioShell {
+		const mainEditorPart = this.editorGroupService.mainPart;
+		const editorFillsWindow = () => mainEditorPart.count === 1 && studioWindowFillingEditorIds.has(mainEditorPart.activeGroup.activeEditorPane?.getId() ?? '');
+		const studioShell = this._register(new StudioShell({
+			titleBar: this.titleBarPartView,
+			banner: this.bannerPartView,
+			activityBar: this.activityBarPartView,
+			sideBar: this.sideBarPartView,
+			editor: this.editorPartView,
+			panel: this.panelPartView,
+			auxiliaryBar: this.auxiliaryBarPartView,
+			statusBar: this.statusBarPartView,
+		}, {
+			sideBarWidth: this.stateModel.getInitializationValue(LayoutStateKeys.SIDEBAR_SIZE),
+			auxiliaryBarWidth: this.stateModel.getInitializationValue(LayoutStateKeys.AUXILIARYBAR_SIZE),
+			panelHeight: isHorizontal(this.stateModel.getRuntimeValue(LayoutStateKeys.PANEL_POSITION)) ? this.stateModel.getInitializationValue(LayoutStateKeys.PANEL_SIZE) : 0,
+			visibleViews: coalesce([
+				this.isVisible(Parts.TITLEBAR_PART, mainWindow) ? this.titleBarPartView : undefined,
+				!this.stateModel.getRuntimeValue(LayoutStateKeys.ACTIVITYBAR_HIDDEN) ? this.activityBarPartView : undefined,
+				!this.stateModel.getRuntimeValue(LayoutStateKeys.SIDEBAR_HIDDEN) ? this.sideBarPartView : undefined,
+				this.isVisible(Parts.AUXILIARYBAR_PART) ? this.auxiliaryBarPartView : undefined,
+				!this.stateModel.getRuntimeValue(LayoutStateKeys.EDITOR_HIDDEN) ? this.editorPartView : undefined,
+				!this.stateModel.getRuntimeValue(LayoutStateKeys.PANEL_HIDDEN) ? this.panelPartView : undefined,
+				!this.stateModel.getRuntimeValue(LayoutStateKeys.STATUSBAR_HIDDEN) ? this.statusBarPartView : undefined,
+			]),
+			editorFillsWindow,
+		}));
+
+		// Whether the editor lies under the panels or between them depends on the active editor.
+		this._register(Event.any<unknown>(this.mainPartEditorService.onDidActiveEditorChange, mainEditorPart.onDidAddGroup, mainEditorPart.onDidRemoveGroup)(() => {
+			if (this.initialized && studioShell.editorPlacementIsOutdated()) {
+				this.layout();
+			}
+		}));
+
+		return studioShell;
 	}
 
 	private createGridDescriptor(): ISerializedGrid {

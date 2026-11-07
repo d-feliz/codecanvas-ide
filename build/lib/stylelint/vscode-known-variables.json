@@ -1488,6 +1488,10 @@
 		"--vscode-spacing-size320",
 		"--vscode-spacing-size360",
 		"--vscode-spacing-size400",
-		"--vscode-strokeThickness"
+		"--vscode-strokeThickness",
+		"--studio-free-bottom",
+		"--studio-free-left",
+		"--studio-free-right",
+		"--studio-free-top"
 	]
 }

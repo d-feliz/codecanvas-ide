@@ -42,3 +42,15 @@
 	/* Like the text editor: no ligatures or contextual alternates (SF Mono draws `[]` as a box with them). */
 	font-feature-settings: "liga" 0, "calt" 0;
 }
+
+/* In Studio a canvas lies under the floating panels (see studioShell.ts): its controls stay in the free area. */
+.monaco-workbench .studio-editor-fills-window .code-canvas-editor .cc-root {
+	--cc-minimap-right: calc(var(--studio-free-right) + 12px);
+	--cc-minimap-bottom: var(--studio-free-bottom);
+}
+
+.monaco-workbench .studio-editor-fills-window .code-canvas-editor .cc-dock,
+.monaco-workbench .studio-editor-fills-window .code-canvas-editor .cc-refs {
+	left: calc(var(--studio-free-left) + (100% - var(--studio-free-left) - var(--studio-free-right)) / 2);
+	max-width: calc(100% - var(--studio-free-left) - var(--studio-free-right) - 24px);
+}

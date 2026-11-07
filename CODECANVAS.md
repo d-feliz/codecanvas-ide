@@ -41,6 +41,11 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   tokens in `studioTokens.ts`, the registered `studio.*` colors, and the bundled Inter and JetBrains
   Mono fonts, SIL OFL), and `extensions/theme-codecanvas-studio/` with the Studio Dark and Studio
   Light themes. The themes are generated from the tokens with `node build/codecanvas/make-studio-themes.ts`.
+  With `"workbench.layoutStyle": "studio"` (default `"classic"` for now), `StudioShell` replaces the
+  workbench grid: the parts float as surfaces, a canvas lies under them, and the panel is a drawer.
+- `browser/layout.ts`: uses `StudioShell` instead of the grid in the Studio layout, and turns off Modern
+  UI's card insets there (the shell floats the parts itself).
+- `build/lib/stylelint/vscode-known-variables.json`: the `studio.*` colors.
 - `build/gulpfile.vscode.ts`: packages the engine's bundle. The engine is a devDependency, so the
   bundle (which includes TypeScript) ships without the package's own dependencies.
 - `api/browser/mainThreadEditorTabs.ts`: extensions see a canvas tab as a text tab of its file.

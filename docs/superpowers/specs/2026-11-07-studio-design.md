@@ -1,6 +1,6 @@
 # Studio: design
 
-Date: 2026-11-07. Status: approved, not started.
+Date: 2026-11-07. Status: in progress (steps 1–3 done).
 
 Studio is CodeCanvas's own look, instead of VS Code's: floating surfaces over an infinite dotted
 canvas, one accent color (gold), node-style blocks, and Canvas / Code / Split views of a file. The
@@ -133,7 +133,8 @@ Order (each step tested and pushed; classic stays the default until step 7):
 
 1. Tokens, the two themes, the fonts.
 2. Engine: Studio blocks, glyphs, frame, links, selected-block toolbar, dock, minimap (engine 0.4.0).
-3. `StudioShell`: floating panels, canvas under the panels, status pills, drawer.
+3. `StudioShell`: floating panels, canvas under the panels, status pills, drawer. (Until the engine
+   can be told the free area, step 6, Fit and centering still use the whole canvas.)
 4. Studio chrome: top groups, open-files bar, left panel icon row and footer, Assistant header.
 5. The palette, ⌘K, and the ⌘K chords moved to ⌘;.
 6. Code and Split views with the block lane (engine 0.5.0).

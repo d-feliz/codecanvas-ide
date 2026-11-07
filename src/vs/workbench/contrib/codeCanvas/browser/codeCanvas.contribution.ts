@@ -28,6 +28,7 @@ import { Extensions as ConfigurationExtensions, IConfigurationRegistry } from '.
 import { Extensions as WorkbenchConfigurationExtensions, IConfigurationMigrationRegistry } from '../../../common/configuration.js';
 import { CODE_CANVAS_DEFAULT_SETTING, CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
 import { CodeCanvasEditor } from './codeCanvasEditor.js';
+import { studioWindowFillingEditorIds } from '../../../browser/studio/studioShell.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
 import { CodeCanvasProjectService, ICodeCanvasProjectService } from './codeCanvasProjects.js';
 
@@ -55,6 +56,7 @@ Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane).registerEditorPane
 	EditorPaneDescriptor.create(CodeCanvasEditor, CodeCanvasEditor.ID, localize('codeCanvasEditor', "Code Canvas")),
 	[new SyncDescriptor(CodeCanvasEditorInput)]
 );
+studioWindowFillingEditorIds.add(CodeCanvasEditor.ID);
 
 class CodeCanvasEditorInputSerializer implements IEditorSerializer {
 	canSerialize(): boolean {
