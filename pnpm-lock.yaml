@@ -242,8 +242,8 @@ importers:
         specifier: 0.3.304
         version: 0.3.304(@anthropic-ai/sdk@0.82.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
       '@codecanvas-ide/engine':
-        specifier: 0.3.0
-        version: 0.3.0
+        specifier: 0.4.0
+        version: 0.4.0
       '@eslint/compat':
         specifier: ^2.1.0
         version: 2.1.0(eslint@10.8.0)
@@ -1689,8 +1689,8 @@ packages:
   '@chevrotain/types@11.1.2':
     resolution: {integrity: sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw==}
 
-  '@codecanvas-ide/engine@0.3.0':
-    resolution: {integrity: sha512-wxpSQzTu4jCF5lN5FRN3ceYK9+1eD3ISpSjOicu/8xUiowpCEv0P81ajQ7BFytlpNJBHpNaQbqaaTXFu07C9Xw==}
+  '@codecanvas-ide/engine@0.4.0':
+    resolution: {integrity: sha512-Sm6d4/vk+t40nIzXSERtZMdb3FM2LtZvunrG0DzmdqTEPK96WHAHBv1/lhtQZurwTvN+LQ3MZgdYCPcJ/3PqEw==}
 
   '@csstools/color-helpers@6.0.2':
     resolution: {integrity: sha512-LMGQLS9EuADloEFkcTBR3BwV/CGHV7zyDxVRtVDTwdI2Ca4it0CCVTT9wCkxSgokjE5Ho41hEPgb8OEUwoXr6Q==}
@@ -9859,7 +9859,7 @@ snapshots:
 
   '@chevrotain/types@11.1.2': {}
 
-  '@codecanvas-ide/engine@0.3.0':
+  '@codecanvas-ide/engine@0.4.0':
     dependencies:
       typescript: 5.9.3
 

@@ -164,14 +164,14 @@ const assert = (condition, message) => {
 
 	// jump to a block in another file
 	await selectBlock('Cart/total');
-	await page.locator(`${canvas} .cc-bar button:has-text("Refs")`).click();
+	await page.locator(`${canvas} .cc-selbar .cc-refs-toggle`).click();
 	await page.waitForTimeout(300);
 	const refs = await page.locator(`${canvas} .cc-refs`).innerText();
 	assert(refs.includes('pricing.ts ›') && refs.includes('applyDiscount'), 'refs list shows blocks in other files');
 	await page.locator(`${canvas} .cc-refs button:has-text("applyDiscount")`).click();
 	await page.waitForSelector(`${canvas} .cc-block[data-id="applyDiscount"].cc-sel`, { timeout: 15000 });
 	assert((await activeTab().innerText()).includes('pricing.ts'), 'clicking it opens that file as a canvas, with the block selected');
-	await page.locator(`${canvas} .cc-bar button:has-text("Refs")`).click();
+	await page.locator(`${canvas} .cc-selbar .cc-refs-toggle`).click();
 	const pricingRefs = await page.locator(`${canvas} .cc-refs`).innerText();
 	assert(pricingRefs.includes('checkout.ts ›'), 'imports through a tsconfig.json path alias are linked');
 
@@ -179,7 +179,7 @@ const assert = (condition, message) => {
 	await openFile('receiptFormat.ts');
 	await page.waitForSelector(`${canvas} .cc-block[data-id="formatReceipt"]`, { timeout: 15000 });
 	await selectBlock('formatReceipt');
-	await page.locator(`${canvas} .cc-bar button:has-text("Refs")`).click();
+	await page.locator(`${canvas} .cc-selbar .cc-refs-toggle`).click();
 	const packageRefsLinked = await page.waitForFunction(selector => document.querySelector(selector)?.textContent?.includes('checkout.ts'), `${canvas} .cc-refs`, { timeout: 10000 }).then(() => true, () => false);
 	assert(packageRefsLinked, 'a block of a workspace package lists its usages in the files that import the package by name');
 
@@ -188,7 +188,7 @@ const assert = (condition, message) => {
 	const shippingOpensAsCanvas = await page.waitForSelector(`${canvas} .cc-block[data-id="shippingCost"]`, { timeout: 15000 }).then(() => true, () => false);
 	assert(shippingOpensAsCanvas, 'a JavaScript file opens as a canvas');
 	await selectBlock('shippingCost');
-	await page.locator(`${canvas} .cc-bar button:has-text("Refs")`).click();
+	await page.locator(`${canvas} .cc-selbar .cc-refs-toggle`).click();
 	const javaScriptRefsLinked = await page.waitForFunction(selector => document.querySelector(selector)?.textContent?.includes('math.ts'), `${canvas} .cc-refs`, { timeout: 10000 }).then(() => true, () => false);
 	assert(javaScriptRefsLinked, 'and its usages link to blocks in TypeScript files');
 
@@ -278,7 +278,7 @@ const assert = (condition, message) => {
 	assert(await page.locator(`${canvas} .cc-err`).count() === 0, 'errors about the conflict markers themselves are not shown');
 	await page.screenshot({ path: path.join(screenshots, 'canvas-conflict.png') });
 	await selectBlock('seasonalDiscount');
-	await page.locator(`${canvas} .cc-bar button:has-text("Edit")`).click();
+	await page.locator(`${canvas} .cc-selbar button:has-text("Edit")`).click();
 	await page.waitForSelector(`${canvas} .cc-editor .monaco-editor .view-lines`);
 	// Monaco draws spaces as no-break spaces.
 	const conflictEditorText = (await page.locator(`${canvas} .cc-editor .view-lines`).innerText()).replace(/\u00a0/g, ' ');
@@ -289,7 +289,7 @@ const assert = (condition, message) => {
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(200);
 	await selectBlock('seasonalDiscount');
-	await page.locator(`${canvas} .cc-bar button:has-text("Keep incoming")`).click();
+	await page.locator(`${canvas} .cc-selbar button:has-text("Keep incoming")`).click();
 	await page.waitForTimeout(500);
 	assert(await page.locator(`${canvas} .cc-banner[hidden]`).count() === 1 && await page.locator(`${canvas} .cc-conflict`).count() === 0, 'Keep incoming resolves the conflict');
 	assert(/amount \* 0\.8/.test(await block('seasonalDiscount').locator('.cc-prev').innerText()), 'the block now has the code of the incoming side');

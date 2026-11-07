@@ -8,15 +8,36 @@
 	overflow: hidden;
 }
 
-/* The engine's canvas follows the workbench theme and font. */
+/* The engine's canvas takes Studio's colors (the studio.* theme colors) and the workbench font. */
 .monaco-workbench .code-canvas-editor .cc-root {
-	--cc-bg: var(--vscode-editor-background);
-	--cc-panel: var(--vscode-editorWidget-background);
-	--cc-panel-border: var(--vscode-editorWidget-border, var(--vscode-widget-border, rgba(127, 127, 127, .3)));
-	--cc-text: var(--vscode-editor-foreground);
-	--cc-muted: var(--vscode-descriptionForeground);
-	--cc-accent: var(--vscode-focusBorder);
+	--cc-bg: var(--vscode-studio-canvas);
+	--cc-dot: var(--vscode-studio-dot);
+	--cc-node-bg: var(--vscode-studio-nodeBackground);
+	--cc-node-border: var(--vscode-studio-nodeBorder);
+	--cc-node-head-border: var(--vscode-studio-nodeHeadBorder);
+	--cc-panel: var(--vscode-studio-surface);
+	--cc-surface2: var(--vscode-studio-surface2);
+	--cc-raised: var(--vscode-studio-raised);
+	--cc-panel-border: var(--vscode-studio-border);
+	--cc-text: var(--vscode-studio-text);
+	--cc-strong: var(--vscode-studio-strong);
+	--cc-muted: var(--vscode-studio-muted);
+	--cc-faint: var(--vscode-studio-faint);
+	--cc-faintest: var(--vscode-studio-faintest);
+	--cc-code: var(--vscode-studio-codeText);
+	--cc-accent: var(--vscode-studio-accent);
+	--cc-ink: var(--vscode-studio-ink);
+	--cc-on-accent: var(--vscode-studio-onAccent);
 	--cc-danger: var(--vscode-editorError-foreground);
+	--k-import: var(--vscode-studio-kindImport);
+	--k-variable: var(--vscode-studio-kindVariable);
+	--k-function: var(--vscode-studio-kindFunction);
+	--k-class: var(--vscode-studio-kindClass);
+	--k-type: var(--vscode-studio-kindType);
+	--k-component: var(--vscode-studio-kindComponent);
+	--k-state: var(--vscode-studio-kindState);
+	--k-namespace: var(--vscode-studio-kindNamespace);
+	--k-statement: var(--vscode-studio-kindStatement);
 	font-family: inherit; /* the workbench font */
 	/* Like the text editor: no ligatures or contextual alternates (SF Mono draws `[]` as a box with them). */
 	font-feature-settings: "liga" 0, "calt" 0;
