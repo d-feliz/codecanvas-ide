@@ -1,0 +1,32 @@
+{
+  "name": "theme-codecanvas-studio",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "10.0.0",
+  "publisher": "vscode",
+  "license": "MIT",
+  "engines": {
+    "vscode": "*"
+  },
+  "categories": ["Themes"],
+  "contributes": {
+    "themes": [
+      {
+        "id": "Studio Dark",
+        "label": "%studioDarkLabel%",
+        "uiTheme": "vs-dark",
+        "path": "./themes/studio-dark-color-theme.json"
+      },
+      {
+        "id": "Studio Light",
+        "label": "%studioLightLabel%",
+        "uiTheme": "vs",
+        "path": "./themes/studio-light-color-theme.json"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/d-feliz/codecanvas-ide.git"
+  }
+}

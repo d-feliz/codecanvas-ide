@@ -35,20 +35,26 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   A file with merge conflicts shows its current side, with the conflicted blocks marked; the block
   editor on such a block shows VS Code's own conflict actions (Accept Current / Incoming / Both,
   Resolve in Merge Editor) next to the canvas's Keep current / incoming / both.
-- `build/next/index.ts`: bundles that worker in production builds.
+- `build/next/index.ts`: bundles that worker in production builds, and bundles `.woff2` fonts (Studio's).
+- Studio, CodeCanvas's own look (in progress; design in
+  `docs/superpowers/specs/2026-11-07-studio-design.md`): `src/vs/workbench/browser/studio/` (its
+  tokens in `studioTokens.ts`, the registered `studio.*` colors, and the bundled Inter and JetBrains
+  Mono fonts, SIL OFL), and `extensions/theme-codecanvas-studio/` with the Studio Dark and Studio
+  Light themes. The themes are generated from the tokens with `node build/codecanvas/make-studio-themes.ts`.
 - `build/gulpfile.vscode.ts`: packages the engine's bundle. The engine is a devDependency, so the
   bundle (which includes TypeScript) ships without the package's own dependencies.
 - `api/browser/mainThreadEditorTabs.ts`: extensions see a canvas tab as a text tab of its file.
   The TypeScript extension only checks files open in text tabs; without this, a file shown only as a
   canvas would get no errors.
-- `workbench.common.main.ts`: imports that contribution.
+- `workbench.common.main.ts`: imports that contribution, and Studio's.
 - `workbench.html`, `workbench-dev.html`: allow the `codecanvas` Trusted Types policy (the engine
   renders blocks with HTML strings).
 - `package.json`, `pnpm-lock.yaml`: the engine, [`@codecanvas-ide/engine`](https://www.npmjs.com/package/@codecanvas-ide/engine)
   from npm.
 - `pnpm-workspace.yaml`: the engine is exempt from the 7-day minimum package age, so a new engine
   release can be used at once.
-- `test/codecanvas/`: end-to-end check of the canvas editor.
+- `test/codecanvas/`: end-to-end checks of the canvas editor and of Studio.
+- `build/filters.ts`: hygiene skips `.woff2` fonts, as it does `.woff`.
 - `eslint.config.js`, `build/hygiene.ts`: accept the CodeCanvas copyright header on the fork's own
   files, allow the engine import in workbench contributions, and give `test/codecanvas` import rules.
 - `build/lib/i18n.resources.json`: the canvas's strings.

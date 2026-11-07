@@ -520,6 +520,7 @@ async function bundle(outDir: string, doMinify: boolean, doNls: boolean, doMangl
 				: { outfile: outPath }),
 			loader: {
 				'.ttf': 'file',
+				'.woff2': 'file',
 				'.svg': 'file',
 				'.png': 'file',
 				'.sh': 'file',

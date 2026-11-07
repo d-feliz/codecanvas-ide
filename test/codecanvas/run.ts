@@ -130,8 +130,10 @@ async function waitForWindow() {
 		await waitForWindow();
 		// Let the extension host and TypeScript start before the checks.
 		await new Promise(resolve => setTimeout(resolve, 4000));
-		const check = spawn(process.execPath, [path.join(import.meta.dirname, 'canvas.e2e.ts'), path.join(workFolder, 'screenshots'), project], { cwd: repoRoot, stdio: 'inherit' });
-		exitCode = await new Promise(resolve => check.on('exit', code => resolve(code ?? 1)));
+		const runCheck = (script: string, args: string[]) => new Promise<number>(resolve => spawn(process.execPath, [path.join(import.meta.dirname, script), path.join(workFolder, 'screenshots'), ...args], { cwd: repoRoot, stdio: 'inherit' }).on('exit', code => resolve(code ?? 1)));
+		const canvasExitCode = await runCheck('canvas.e2e.ts', [project]);
+		const studioExitCode = await runCheck('studio.e2e.ts', [path.join(workFolder, 'user', 'User', 'settings.json')]);
+		exitCode = canvasExitCode || studioExitCode;
 	} catch (error) {
 		console.error(error.message);
 	} finally {
