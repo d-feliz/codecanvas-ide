@@ -40,6 +40,7 @@ import { isDark } from '../../../../platform/theme/common/theme.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 import { EditorPane } from '../../../browser/parts/editor/editorPane.js';
+import { getStudioEditorFreeArea, onDidChangeStudioEditorFreeArea } from '../../../browser/studio/studioShell.js';
 import { IEditorOpenContext } from '../../../common/editor.js';
 import { IEditorGroup } from '../../../services/editor/common/editorGroupsService.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
@@ -241,6 +242,9 @@ export class CodeCanvasEditor extends EditorPane {
 			}
 		}));
 
+		// In Studio the canvas lies under the floating panels; it keeps the file and Fit clear of them.
+		canvas.setViewInsets(getStudioEditorFreeArea());
+		this.inputDisposables.add(onDidChangeStudioEditorFreeArea(freeArea => canvas.setViewInsets(freeArea)));
 		canvas.openFile(path, model.getValue(), savedLayout.layout);
 		this.shownFile = { canvas, model, layoutResource };
 		this.inputDisposables.add(toDisposable(() => this.shownFile = undefined));

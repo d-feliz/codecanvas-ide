@@ -7,6 +7,7 @@ import './media/studioShell.css';
 import { $ } from '../../../base/browser/dom.js';
 import { ISerializableView, IViewSize } from '../../../base/browser/ui/grid/grid.js';
 import { Orientation, Sash, SashState } from '../../../base/browser/ui/sash/sash.js';
+import { Emitter, Event } from '../../../base/common/event.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
 import { StudioRectangle, StudioShellInput, StudioShellRectangles, studioShellRectangles } from './studioShellGeometry.js';
 
@@ -16,6 +17,17 @@ export const STUDIO_LAYOUT_STYLE_SETTING = 'workbench.layoutStyle';
 export const studioWindowFillingEditorIds = new Set<string>();
 
 const STUDIO_LEFT_PANEL_FOOTER_HEIGHT = 44;
+
+export type StudioEditorFreeArea = StudioShellRectangles['editorFreeArea'];
+let studioEditorFreeArea: StudioEditorFreeArea = { left: 0, right: 0, top: 0, bottom: 0 };
+const studioEditorFreeAreaEmitter = new Emitter<StudioEditorFreeArea>();
+/** Fires when the floating panels cover a different part of a window-filling editor (the canvas). */
+export const onDidChangeStudioEditorFreeArea: Event<StudioEditorFreeArea> = studioEditorFreeAreaEmitter.event;
+
+/** What the floating panels leave free of a window-filling editor, as distances from its edges. */
+export function getStudioEditorFreeArea(): StudioEditorFreeArea {
+	return studioEditorFreeArea;
+}
 
 /**
  * The empty elements the shell places for Studio's own widgets. The widgets need services from
@@ -252,6 +264,11 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 		const editorElement = this.views.editor.element;
 		editorElement.classList.toggle('studio-editor-fills-window', editorFillsWindow);
 		const freeArea = rectangles.editorFreeArea;
+		const freeAreaChanged = (Object.keys(freeArea) as (keyof StudioEditorFreeArea)[]).some(edge => freeArea[edge] !== studioEditorFreeArea[edge]);
+		if (freeAreaChanged) {
+			studioEditorFreeArea = freeArea;
+			studioEditorFreeAreaEmitter.fire(freeArea);
+		}
 		editorElement.style.setProperty('--studio-free-left', `${freeArea.left}px`);
 		editorElement.style.setProperty('--studio-free-right', `${freeArea.right}px`);
 		editorElement.style.setProperty('--studio-free-top', `${freeArea.top}px`);

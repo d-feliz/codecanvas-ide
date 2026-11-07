@@ -55,8 +55,11 @@ const assert = (condition, message) => {
 		}
 	};
 
+	// Files open at 100%, so the block may be out of view: zoom out to the whole file first.
 	const selectBlock = async id => {
 		if (!(await isSelected(id))) {
+			await page.locator(`${canvas} .cc-dock button:text-is("Fit")`).click();
+			await page.waitForTimeout(400);
 			await block(id).locator('.cc-head').click();
 		}
 	};

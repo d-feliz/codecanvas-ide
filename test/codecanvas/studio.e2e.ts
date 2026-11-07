@@ -76,6 +76,10 @@ const assert = (condition, message) => {
 		assert(Math.round(projectButton.y) === 12 && Math.round(projectButton.height) === 36, 'the top bar buttons are 36px high, 12px from the top');
 		const editor = await box('.studio-shell > .part.editor');
 		assert(Math.round(editor.x) === 0 && Math.round(editor.width) === window.width, 'a canvas lies under the floating panels');
+		const frame = await box('.code-canvas-editor .cc-frame');
+		assert((await page.locator('.code-canvas-editor .cc-zoom').innerText()) === '100%' && frame.x >= sideBar.x + sideBar.width, 'the file opens at 100%, beside the left panel, not under it');
+		const functionGlyph = await page.locator('.code-canvas-editor .cc-block.k-function .cc-glyph').first().evaluate(e => getComputedStyle(e).backgroundColor);
+		assert(functionGlyph === 'rgb(169, 139, 240)', 'blocks take their kind color from the Studio theme');
 		const dock = await box('.code-canvas-editor .cc-dock');
 		const freeRight = await isShown('.studio-shell > .part.auxiliarybar') ? (await box('.studio-shell > .part.auxiliarybar')).x : window.width;
 		const freeCenter = (sideBar.x + sideBar.width + freeRight) / 2;

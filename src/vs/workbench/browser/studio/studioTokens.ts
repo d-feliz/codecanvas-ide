@@ -52,7 +52,7 @@ export interface StudioPalette {
 	syntaxFunction: string;
 }
 
-/** Block kinds of the canvas: the design gives import, variable and function; the rest follow them. */
+/** Block kinds of the canvas ("Node color options", option 6): blocks are tinted with these, see the engine's styles. */
 export interface StudioKindColors {
 	import: string;
 	variable: string;
@@ -144,25 +144,25 @@ export const STUDIO_LIGHT: StudioPalette = {
 };
 
 export const STUDIO_KINDS_DARK: StudioKindColors = {
-	import: '#B4B9C2',
-	variable: '#7CC4E8',
-	function: '#E8C27A',
-	class: '#8FD0A5',
-	type: '#B8B0F0',
-	component: '#5FD1B5',
-	state: '#F0A36A',
-	namespace: '#9AA6BD',
-	statement: '#8B8F98',
+	import: '#9AA0AA',
+	variable: '#5DB8E8',
+	function: '#A98BF0',
+	class: '#5CC98A',
+	type: '#E8B04A',
+	component: '#F08CC4',
+	state: '#C5DC5A',
+	namespace: '#86E3D6',
+	statement: '#C9CDD4',
 };
 
 export const STUDIO_KINDS_LIGHT: StudioKindColors = {
-	import: '#555A63',
-	variable: '#1D6A92',
-	function: '#8A5D0E',
-	class: '#2F7A4A',
-	type: '#5A4BB0',
-	component: '#11756A',
-	state: '#A8521A',
-	namespace: '#4F5B73',
-	statement: '#5F626A',
+	import: '#5F646D',
+	variable: '#1F6E9A',
+	function: '#6B48C8',
+	class: '#1E7F4C',
+	type: '#9A6406',
+	component: '#B0306F',
+	state: '#5E7410',
+	namespace: '#0B6F64',
+	statement: '#3F434A',
 };
