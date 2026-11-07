@@ -89,3 +89,30 @@
 	border-radius: 10px;
 	overflow: hidden;
 }
+
+.monaco-workbench .studio-shell > .studio-floating.studio-joined-to-below {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.monaco-workbench .studio-shell > .studio-left-panel-footer {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-top: 1px solid var(--vscode-studio-divider);
+}
+
+/* The top bar is where the window is dragged, except on its buttons. */
+.monaco-workbench .studio-shell > .studio-top-bar {
+	z-index: 15;
+	-webkit-app-region: drag;
+}
+
+.monaco-workbench .studio-shell > .studio-top-bar button,
+.monaco-workbench .studio-shell > .studio-top-bar .monaco-action-bar {
+	-webkit-app-region: no-drag;
+}
+
+/* :is() raises it above the platform font rules (.monaco-workbench.mac and others). */
+.monaco-workbench.studio-layout:is(.mac, .windows, .linux, .web) {
+	font-family: var(--studio-font-ui), -apple-system, BlinkMacSystemFont, sans-serif;
+}

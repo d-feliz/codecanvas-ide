@@ -1,6 +1,6 @@
 # Studio: design
 
-Date: 2026-11-07. Status: in progress (steps 1–3 done).
+Date: 2026-11-07. Status: in progress (steps 1–4 done).
 
 Studio is CodeCanvas's own look, instead of VS Code's: floating surfaces over an infinite dotted
 canvas, one accent color (gold), node-style blocks, and Canvas / Code / Split views of a file. The
@@ -136,6 +136,7 @@ Order (each step tested and pushed; classic stays the default until step 7):
 3. `StudioShell`: floating panels, canvas under the panels, status pills, drawer. (Until the engine
    can be told the free area, step 6, Fit and centering still use the whole canvas.)
 4. Studio chrome: top groups, open-files bar, left panel icon row and footer, Assistant header.
+   (Split joins Canvas / Code in step 6; the editor's own actions sit in the top bar for now.)
 5. The palette, ⌘K, and the ⌘K chords moved to ⌘;.
 6. Code and Split views with the block lane (engine 0.5.0).
 7. Polish against the boards (light theme included), Studio becomes the default, docs.

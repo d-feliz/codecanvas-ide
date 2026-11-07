@@ -27,6 +27,7 @@ import { IEditorService } from '../services/editor/common/editorService.js';
 import { EditorGroupLayout, GroupActivationReason, GroupOrientation, GroupsOrder, IEditorGroupsService } from '../services/editor/common/editorGroupsService.js';
 import { SerializableGrid, ISerializableView, ISerializedGrid, Orientation, ISerializedNode, ISerializedLeafNode, Direction, IViewSize, Sizing } from '../../base/browser/ui/grid/grid.js';
 import { IWorkbenchGrid, STUDIO_LAYOUT_STYLE_SETTING, StudioShell, studioWindowFillingEditorIds } from './studio/studioShell.js';
+import { registerStudioSettingDefaults } from './studio/studioSettingDefaults.js';
 import { Part } from './part.js';
 import { IStatusbarService } from '../services/statusbar/browser/statusbar.js';
 import { IFileService } from '../../platform/files/common/files.js';
@@ -330,6 +331,9 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 		// Services
 		this.environmentService = accessor.get(IBrowserWorkbenchEnvironmentService);
 		this.configurationService = accessor.get(IConfigurationService);
+		if (this.isStudioLayout()) {
+			registerStudioSettingDefaults();
+		}
 		this.hostService = accessor.get(IHostService);
 		this.contextService = accessor.get(IWorkspaceContextService);
 		this.storageService = accessor.get(IStorageService);
@@ -2681,7 +2685,7 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 	private createStudioShell(): StudioShell {
 		const mainEditorPart = this.editorGroupService.mainPart;
 		const editorFillsWindow = () => mainEditorPart.count === 1 && studioWindowFillingEditorIds.has(mainEditorPart.activeGroup.activeEditorPane?.getId() ?? '');
-		const studioShell = this._register(new StudioShell({
+		const studioShell = this._register(new StudioShell(this.mainContainer, {
 			titleBar: this.titleBarPartView,
 			banner: this.bannerPartView,
 			activityBar: this.activityBarPartView,

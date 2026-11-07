@@ -15,6 +15,24 @@ export const STUDIO_LAYOUT_STYLE_SETTING = 'workbench.layoutStyle';
 /** Ids of editors that lie under the floating panels instead of between them (the canvas editor adds its id). */
 export const studioWindowFillingEditorIds = new Set<string>();
 
+const STUDIO_LEFT_PANEL_FOOTER_HEIGHT = 44;
+
+/**
+ * The empty elements the shell places for Studio's own widgets. The widgets need services from
+ * `contrib/` (source control, accounts, the canvas), so `contrib/studio` fills them in.
+ */
+export interface StudioChromeSlots {
+	readonly topBar: HTMLElement;
+	readonly leftPanelFooter: HTMLElement;
+}
+
+const studioChromeSlotsByContainer = new WeakMap<HTMLElement, StudioChromeSlots>();
+
+/** The slots of the Studio shell in this workbench container, or undefined in the classic layout. */
+export function getStudioChromeSlots(workbenchContainer: HTMLElement): StudioChromeSlots | undefined {
+	return studioChromeSlotsByContainer.get(workbenchContainer);
+}
+
 /** The part of `SerializableGrid` that the workbench layout uses, which `StudioShell` also provides. */
 export interface IWorkbenchGrid {
 	readonly element: HTMLElement;
@@ -61,6 +79,8 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 
 	readonly element = $('.studio-shell');
 	edgeSnapping = false;
+	private readonly topBar = $('.studio-top-bar');
+	private readonly leftPanelFooter = $('.studio-left-panel-footer.studio-floating');
 
 	private readonly visibleViews: Set<ISerializableView>;
 	private readonly laidOutRectangles = new Map<ISerializableView, StudioRectangle>();
@@ -73,7 +93,7 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 	private readonly auxiliaryBarSash: Sash;
 	private readonly panelSash: Sash;
 
-	constructor(private readonly views: StudioShellViews, private readonly startState: StudioShellStartState) {
+	constructor(workbenchContainer: HTMLElement, private readonly views: StudioShellViews, private readonly startState: StudioShellStartState) {
 		super();
 		this.visibleViews = new Set(startState.visibleViews);
 		this.sideBarWidth = startState.sideBarWidth;
@@ -84,8 +104,13 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 		for (const view of [views.editor, views.titleBar, views.banner, ...floatingViews, views.statusBar]) {
 			this.element.appendChild(view.element);
 			view.element.classList.add('studio-part');
-			view.element.style.display = this.visibleViews.has(view) ? '' : 'none';
+			view.element.style.display = this.isShown(view) ? '' : 'none';
 		}
+		for (const slot of [this.topBar, this.leftPanelFooter]) {
+			this.element.appendChild(slot);
+			slot.classList.add('studio-part');
+		}
+		studioChromeSlotsByContainer.set(workbenchContainer, { topBar: this.topBar, leftPanelFooter: this.leftPanelFooter });
 		for (const view of floatingViews) {
 			view.element.classList.add('studio-floating');
 		}
@@ -117,7 +142,7 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 		} else {
 			this.visibleViews.delete(view);
 		}
-		view.element.style.display = visible ? '' : 'none';
+		view.element.style.display = this.isShown(view) ? '' : 'none';
 		view.setVisible?.(visible);
 		this.layoutViews();
 	}
@@ -156,6 +181,11 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 	moveViewTo(): void { }
 	getNeighborViews(): ISerializableView[] { return []; }
 
+	/** Studio's top bar takes the place of VS Code's title bar, which stays hidden. */
+	private isShown(view: ISerializableView): boolean {
+		return view !== this.views.titleBar && this.visibleViews.has(view);
+	}
+
 	private layoutViews(): void {
 		if (!this.windowSize) {
 			return;
@@ -165,13 +195,13 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 		const input: StudioShellInput = {
 			windowWidth: this.windowSize.width,
 			windowHeight: this.windowSize.height,
-			titleBar: sizeIfVisible(views.titleBar, { height: views.titleBar.minimumHeight }),
 			banner: sizeIfVisible(views.banner, { height: views.banner.minimumHeight }),
 			activityBar: sizeIfVisible(views.activityBar, { width: views.activityBar.minimumWidth }),
 			sideBar: sizeIfVisible(views.sideBar, { width: this.widthWithinLimits(views.sideBar, this.sideBarWidth) }),
 			auxiliaryBar: sizeIfVisible(views.auxiliaryBar, { width: this.widthWithinLimits(views.auxiliaryBar, this.auxiliaryBarWidth) }),
 			panel: sizeIfVisible(views.panel, { height: this.panelHeight }),
 			statusBar: sizeIfVisible(views.statusBar, { height: views.statusBar.minimumHeight }),
+			leftPanelFooter: sizeIfVisible(views.sideBar, { height: STUDIO_LEFT_PANEL_FOOTER_HEIGHT }),
 			editorFillsWindow: this.startState.editorFillsWindow(),
 		};
 		this.laidOutEditorFillsWindow = input.editorFillsWindow;
@@ -185,6 +215,9 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 		this.placeView(views.panel, rectangles.panel);
 		this.placeView(views.statusBar, rectangles.statusBar);
 		this.placeView(views.editor, rectangles.editor);
+		placeElement(this.topBar, rectangles.topBar);
+		this.leftPanelFooter.style.display = rectangles.leftPanelFooter ? '' : 'none';
+		placeElement(this.leftPanelFooter, rectangles.leftPanelFooter);
 		this.markJoinedSurfaces(rectangles);
 		this.passFreeAreaToEditor(rectangles, input.editorFillsWindow);
 
@@ -201,19 +234,18 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 			return;
 		}
 		this.laidOutRectangles.set(view, rectangle);
-		const style = view.element.style;
-		style.left = `${rectangle.left}px`;
-		style.top = `${rectangle.top}px`;
-		style.width = `${rectangle.width}px`;
-		style.height = `${rectangle.height}px`;
 		view.layout(rectangle.width, rectangle.height, rectangle.top, rectangle.left);
+		// After layout(): pane parts reset their own inline height there (the grid sizes a wrapper instead).
+		placeElement(view.element, rectangle);
 	}
 
-	/** The activity bar and the side bar make one surface, the left panel. */
+	/** The activity bar, the side bar and the footer make one surface, the left panel. */
 	private markJoinedSurfaces(rectangles: StudioShellRectangles): void {
-		const leftPanelHasBothParts = !!rectangles.activityBar && !!rectangles.sideBar;
-		this.views.activityBar.element.classList.toggle('studio-joined-to-next', leftPanelHasBothParts);
-		this.views.sideBar.element.classList.toggle('studio-joined-to-previous', leftPanelHasBothParts);
+		const activityBarBesideSideBar = !!rectangles.activityBar && !!rectangles.sideBar;
+		this.views.activityBar.element.classList.toggle('studio-joined-to-next', activityBarBesideSideBar);
+		this.views.sideBar.element.classList.toggle('studio-joined-to-previous', activityBarBesideSideBar);
+		this.views.sideBar.element.classList.toggle('studio-joined-to-below', !!rectangles.leftPanelFooter);
+		this.leftPanelFooter.classList.toggle('studio-joined-to-previous', activityBarBesideSideBar);
 	}
 
 	private passFreeAreaToEditor(rectangles: StudioShellRectangles, editorFillsWindow: boolean): void {
@@ -264,4 +296,14 @@ export class StudioShell extends Disposable implements IWorkbenchGrid {
 		}));
 		return sash;
 	}
+}
+
+function placeElement(element: HTMLElement, rectangle: StudioRectangle | undefined): void {
+	if (!rectangle) {
+		return;
+	}
+	element.style.left = `${rectangle.left}px`;
+	element.style.top = `${rectangle.top}px`;
+	element.style.width = `${rectangle.width}px`;
+	element.style.height = `${rectangle.height}px`;
 }

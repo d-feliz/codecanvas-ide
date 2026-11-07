@@ -43,6 +43,10 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   Light themes. The themes are generated from the tokens with `node build/codecanvas/make-studio-themes.ts`.
   With `"workbench.layoutStyle": "studio"` (default `"classic"` for now), `StudioShell` replaces the
   workbench grid: the parts float as surfaces, a canvas lies under them, and the panel is a drawer.
+  `src/vs/workbench/contrib/studio/` fills the shell's top bar (project, branch, Go to anything, open
+  files, editor actions, Canvas / Code, theme, Assistant, account), the left panel's footer and the
+  Assistant's header. In Studio, the view icons go on top of the left panel and editor tabs and
+  breadcrumbs are off by default (`studioSettingDefaults.ts`).
 - `browser/layout.ts`: uses `StudioShell` instead of the grid in the Studio layout, and turns off Modern
   UI's card insets there (the shell floats the parts itself).
 - `build/lib/stylelint/vscode-known-variables.json`: the `studio.*` colors.
@@ -51,7 +55,7 @@ Kept small on purpose, so merging new VS Code versions stays easy:
 - `api/browser/mainThreadEditorTabs.ts`: extensions see a canvas tab as a text tab of its file.
   The TypeScript extension only checks files open in text tabs; without this, a file shown only as a
   canvas would get no errors.
-- `workbench.common.main.ts`: imports that contribution, and Studio's.
+- `workbench.common.main.ts`: imports that contribution, and Studio's two.
 - `workbench.html`, `workbench-dev.html`: allow the `codecanvas` Trusted Types policy (the engine
   renders blocks with HTML strings).
 - `package.json`, `pnpm-lock.yaml`: the engine, [`@codecanvas-ide/engine`](https://www.npmjs.com/package/@codecanvas-ide/engine)

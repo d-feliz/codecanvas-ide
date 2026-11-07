@@ -1432,7 +1432,9 @@
 		"--tabbed-action-list-tab-icon-light",
 		"--tabbed-action-list-tab-icon-dark",
 		"--chat-model-picker-welcome-icon-light",
-		"--chat-model-picker-welcome-icon-dark"
+		"--chat-model-picker-welcome-icon-dark",
+		"--studio-font-mono",
+		"--studio-font-ui"
 	],
 	"sizes": [
 		"--segmented-icon-toggle-cell-radius",

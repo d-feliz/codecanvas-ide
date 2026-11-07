@@ -1,0 +1,345 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) CodeCanvas contributors. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/* ---- Top bar ---- */
+
+.monaco-workbench .studio-top-bar-content {
+	box-sizing: border-box;
+	height: 100%;
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 0 12px;
+	font-size: 13px;
+	color: var(--vscode-studio-text);
+}
+
+/* Room for the macOS window buttons, which the shell centers on the top bar's buttons. */
+.monaco-workbench.mac:not(.fullscreen) .studio-top-bar-content {
+	padding-left: 84px;
+}
+
+.monaco-workbench .studio-top-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: none;
+	min-width: 0;
+}
+
+.monaco-workbench .studio-top-bar .studio-button {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 36px;
+	padding: 0 12px;
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 12px;
+	background: var(--vscode-studio-surface);
+	color: var(--vscode-studio-muted);
+	font: inherit;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.monaco-workbench .studio-top-bar .studio-button:hover {
+	color: var(--vscode-studio-strong);
+}
+
+.monaco-workbench .studio-top-bar .studio-button:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: 1px;
+}
+
+.monaco-workbench .studio-top-bar .studio-project {
+	gap: 10px;
+	padding: 0 12px 0 10px;
+	color: var(--vscode-studio-strong);
+}
+
+.monaco-workbench .studio-top-bar .studio-project > .studio-icon {
+	color: var(--vscode-studio-ink);
+}
+
+.monaco-workbench .studio-top-bar .studio-project-name {
+	font-weight: 600;
+}
+
+.monaco-workbench .studio-top-bar .studio-faint,
+.monaco-workbench .studio-top-bar .studio-go-to-anything {
+	color: var(--vscode-studio-faint);
+	display: flex;
+}
+
+.monaco-workbench .studio-top-bar .studio-branch,
+.monaco-workbench .studio-top-bar .studio-open-files {
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 12px;
+}
+
+.monaco-workbench .studio-top-bar .studio-branch {
+	gap: 6px;
+}
+
+.monaco-workbench .studio-top-bar .studio-go-to-anything {
+	gap: 10px;
+	padding: 0 8px 0 12px;
+}
+
+.monaco-workbench .studio-top-bar .studio-key {
+	padding: 2px 6px;
+	border-radius: 6px;
+	background: var(--vscode-studio-raised);
+	color: var(--vscode-studio-muted);
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 11px;
+}
+
+/* Open files */
+
+.monaco-workbench .studio-top-bar .studio-open-files {
+	flex: 0 1 auto;
+	gap: 2px;
+	height: 36px;
+	box-sizing: border-box;
+	padding: 4px;
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 12px;
+	background: var(--vscode-studio-surface);
+	-webkit-app-region: no-drag;
+}
+
+.monaco-workbench .studio-top-bar .studio-open-files .studio-button {
+	height: 26px;
+	padding: 0 10px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--vscode-studio-faint);
+}
+
+.monaco-workbench .studio-top-bar .studio-open-files .studio-navigate {
+	width: 26px;
+	padding: 0;
+	justify-content: center;
+	font-size: 15px;
+}
+
+.monaco-workbench .studio-top-bar .studio-divider {
+	flex: none;
+	width: 1px;
+	height: 16px;
+	margin: 0 4px;
+	background: var(--vscode-studio-border);
+}
+
+.monaco-workbench .studio-top-bar .studio-open-files-list {
+	display: flex;
+	gap: 2px;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.monaco-workbench .studio-top-bar .studio-open-files .studio-open-file {
+	flex: none;
+	color: var(--vscode-studio-muted);
+}
+
+.monaco-workbench .studio-top-bar .studio-open-files .studio-open-file.studio-active {
+	background: var(--vscode-studio-raised);
+	color: var(--vscode-studio-strong);
+}
+
+.monaco-workbench .studio-top-bar .studio-file-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--vscode-studio-faintest);
+}
+
+.monaco-workbench .studio-top-bar .studio-file-dot.studio-file-ts {
+	background: var(--vscode-studio-fileTs);
+}
+
+.monaco-workbench .studio-top-bar .studio-file-dot.studio-file-js {
+	background: var(--vscode-studio-fileJs);
+}
+
+.monaco-workbench .studio-top-bar .studio-unsaved {
+	color: var(--vscode-studio-ink);
+	font-size: 9px;
+}
+
+.monaco-workbench .studio-top-bar .studio-close-file {
+	margin-left: 2px;
+	color: var(--vscode-studio-faint);
+}
+
+.monaco-workbench .studio-top-bar .studio-close-file:hover {
+	color: var(--vscode-studio-strong);
+}
+
+/* Right group */
+
+.monaco-workbench .studio-top-bar .studio-editor-actions {
+	display: flex;
+	align-items: center;
+	height: 36px;
+	box-sizing: border-box;
+	padding: 0 4px;
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 12px;
+	background: var(--vscode-studio-surface);
+}
+
+.monaco-workbench .studio-top-bar .studio-editor-actions:has(.actions-container:empty) {
+	display: none;
+}
+
+.monaco-workbench .studio-top-bar .studio-segmented {
+	display: flex;
+	gap: 2px;
+	padding: 3px;
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 12px;
+	background: var(--vscode-studio-surface);
+}
+
+.monaco-workbench .studio-top-bar .studio-segmented .studio-segment {
+	height: 28px;
+	padding: 0 12px;
+	border: 0;
+	border-radius: 9px;
+	background: transparent;
+	font-weight: 500;
+}
+
+.monaco-workbench .studio-top-bar .studio-segmented .studio-segment.studio-active {
+	background: var(--vscode-studio-raised);
+	color: var(--vscode-studio-strong);
+}
+
+.monaco-workbench .studio-top-bar .studio-icon-button {
+	width: 36px;
+	padding: 0;
+	justify-content: center;
+}
+
+.monaco-workbench .studio-top-bar .studio-icon-button.studio-pressed {
+	background: var(--vscode-studio-raised);
+}
+
+/* Account: VS Code's Accounts item covers the pill, so a click anywhere opens its menu. */
+.monaco-workbench .studio-top-bar .studio-top-account {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 36px;
+	height: 36px;
+	box-sizing: border-box;
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 12px;
+	background: var(--vscode-studio-surface);
+	-webkit-app-region: no-drag;
+}
+
+.monaco-workbench .studio-top-bar .studio-top-account > .monaco-action-bar {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.monaco-workbench .studio-top-bar .studio-top-account .studio-sign-in {
+	padding: 0 14px;
+	font-weight: 600;
+	pointer-events: none;
+}
+
+.monaco-workbench .studio-top-bar .studio-top-account:not(.studio-signed-in) {
+	border-color: transparent;
+	background: var(--vscode-studio-accent);
+	color: var(--vscode-studio-onAccent);
+}
+
+.monaco-workbench .studio-top-bar .studio-top-account:not(.studio-signed-in) > .monaco-action-bar {
+	opacity: 0;
+}
+
+.monaco-workbench .studio-top-bar .studio-top-account.studio-signed-in .studio-sign-in {
+	display: none;
+}
+
+/* ---- Left panel footer ---- */
+
+.monaco-workbench .studio-left-panel-footer-content {
+	box-sizing: border-box;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 6px 0 4px;
+	color: var(--vscode-studio-muted);
+}
+
+.monaco-workbench .studio-left-panel-footer-content .studio-footer-account {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+}
+
+.monaco-workbench .studio-left-panel-footer-content .studio-footer-account-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ---- Assistant header ---- */
+
+.monaco-workbench .part.auxiliarybar > .studio-assistant-header {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 5;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 10px 0 14px;
+	border-bottom: 1px solid var(--vscode-studio-divider);
+	background: var(--vscode-studio-panel);
+}
+
+.monaco-workbench .studio-assistant-header .studio-assistant-title {
+	font-weight: 600;
+	color: var(--vscode-studio-strong);
+}
+
+.monaco-workbench .studio-assistant-header .studio-assistant-actions {
+	display: flex;
+	gap: 2px;
+}
+
+.monaco-workbench .studio-assistant-header .studio-assistant-button {
+	width: 28px;
+	height: 28px;
+	border: 0;
+	border-radius: 7px;
+	background: transparent;
+	color: var(--vscode-studio-faint);
+	font: inherit;
+	font-size: 16px;
+	cursor: pointer;
+}
+
+.monaco-workbench .studio-assistant-header .studio-assistant-button:hover {
+	background: var(--vscode-studio-raised);
+	color: var(--vscode-studio-strong);
+}

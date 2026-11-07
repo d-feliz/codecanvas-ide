@@ -13,25 +13,29 @@ export interface StudioRectangle {
 export interface StudioShellInput {
 	windowWidth: number;
 	windowHeight: number;
-	titleBar?: { height: number };
 	banner?: { height: number };
 	activityBar?: { width: number };
 	sideBar?: { width: number };
 	auxiliaryBar?: { width: number };
 	panel?: { height: number };
 	statusBar?: { height: number };
+	/** Studio's footer of the left panel (account and settings), under the side bar. */
+	leftPanelFooter?: { height: number };
 	/** A canvas editor lies under the floating panels; any other editor gets the area between them. */
 	editorFillsWindow: boolean;
 }
 
 export interface StudioShellRectangles {
-	titleBar?: StudioRectangle;
+	/** VS Code's title bar stays hidden; it is laid out only so that macOS centers the window buttons on the top bar. */
+	titleBar: StudioRectangle;
+	topBar: StudioRectangle;
 	banner?: StudioRectangle;
 	activityBar?: StudioRectangle;
 	sideBar?: StudioRectangle;
 	auxiliaryBar?: StudioRectangle;
 	panel?: StudioRectangle;
 	statusBar?: StudioRectangle;
+	leftPanelFooter?: StudioRectangle;
 	editor: StudioRectangle;
 	/** The part of the editor that no floating surface covers, as distances from the editor's edges. */
 	editorFreeArea: { left: number; right: number; top: number; bottom: number };
@@ -39,6 +43,9 @@ export interface StudioShellRectangles {
 
 export const STUDIO_WINDOW_MARGIN = 12;
 export const STUDIO_SURFACE_GAP = 8;
+/** The top bar's buttons are 36px high, 12px from the window's top edge. */
+export const STUDIO_TOP_BAR_BUTTON_HEIGHT = 36;
+export const STUDIO_TOP_BAR_HEIGHT = STUDIO_WINDOW_MARGIN + STUDIO_TOP_BAR_BUTTON_HEIGHT;
 /** Room for the canvas's dock (bottom center), which the drawer stays above. */
 export const STUDIO_CANVAS_DOCK_HEIGHT = 48;
 export const STUDIO_PANEL_MINIMUM_HEIGHT = 120;
@@ -47,11 +54,9 @@ export function studioShellRectangles(input: StudioShellInput): StudioShellRecta
 	const { windowWidth, windowHeight } = input;
 	const rectangles: Partial<StudioShellRectangles> = {};
 
-	let top = 0;
-	if (input.titleBar) {
-		rectangles.titleBar = { left: 0, top, width: windowWidth, height: input.titleBar.height };
-		top += input.titleBar.height;
-	}
+	rectangles.titleBar = { left: 0, top: 0, width: windowWidth, height: STUDIO_TOP_BAR_HEIGHT + STUDIO_WINDOW_MARGIN };
+	rectangles.topBar = { left: 0, top: 0, width: windowWidth, height: STUDIO_TOP_BAR_HEIGHT };
+	let top = STUDIO_TOP_BAR_HEIGHT;
 	if (input.banner) {
 		rectangles.banner = { left: 0, top, width: windowWidth, height: input.banner.height };
 		top += input.banner.height;
@@ -73,7 +78,11 @@ export function studioShellRectangles(input: StudioShellInput): StudioShellRecta
 	}
 	if (input.sideBar) {
 		const sideBarLeft = leftSurfacesRight || STUDIO_WINDOW_MARGIN;
-		rectangles.sideBar = { left: sideBarLeft, top: surfacesTop, width: input.sideBar.width, height: surfacesHeight };
+		const footerHeight = input.leftPanelFooter?.height ?? 0;
+		rectangles.sideBar = { left: sideBarLeft, top: surfacesTop, width: input.sideBar.width, height: Math.max(0, surfacesHeight - footerHeight) };
+		if (input.leftPanelFooter) {
+			rectangles.leftPanelFooter = { left: sideBarLeft, top: surfacesTop + rectangles.sideBar.height, width: input.sideBar.width, height: footerHeight };
+		}
 		leftSurfacesRight = sideBarLeft + input.sideBar.width;
 	}
 

@@ -45,6 +45,8 @@ const assert = (condition, message) => {
 	const box = async (selector: string) => (await page.locator(selector).first().boundingBox())!;
 	const isShown = (selector: string) => page.locator(selector).first().isVisible();
 
+	const workbenchColor = (name: string) => page.evaluate(variable => getComputedStyle(document.querySelector('.monaco-workbench')!).getPropertyValue(variable).trim().toLowerCase(), `--vscode-${name.replace('.', '-')}`);
+
 	// The layout style is read when the window opens, so this switches it and reloads the window.
 	const checkStudioLayout = async () => {
 		await setUserSettings({ 'workbench.colorTheme': 'Studio Dark', 'workbench.layoutStyle': 'studio' });
@@ -57,8 +59,21 @@ const assert = (condition, message) => {
 		await openFile('cart.ts');
 		await page.waitForSelector('.code-canvas-editor .cc-block', { timeout: 30000 });
 		const sideBar = await box('.studio-shell > .part.sidebar');
-		const activityBar = await box('.studio-shell > .part.activitybar');
-		assert(Math.round(activityBar.x) === 12 && Math.round(sideBar.x) === Math.round(activityBar.x + activityBar.width), 'the left panel floats 12px from the window edge');
+		assert(Math.round(sideBar.x) === 12 && Math.round(sideBar.y) === 60, 'the left panel floats 12px from the window edge, below the top bar');
+		assert(!await isShown('.studio-shell > .part.titlebar') && !await isShown('.studio-shell > .part.activitybar') && !await isShown('.part.editor .tabs-container'), 'VS Code\'s title bar, activity bar and editor tabs are hidden');
+		assert(await isShown('.studio-shell > .part.sidebar .composite-bar-container'), 'the view icons are on top of the left panel');
+		const footer = await box('.studio-shell > .studio-left-panel-footer');
+		assert(Math.round(footer.x) === 12 && Math.round(footer.y) === Math.round(sideBar.y + sideBar.height), 'the left panel ends in a footer');
+		assert(await isShown('.studio-left-panel-footer .codicon-settings-view-bar-icon') && await isShown('.studio-left-panel-footer .codicon-accounts-view-bar-icon'), 'with the account and the Manage menu');
+
+		const topBarText = (selector: string) => page.locator(`.studio-top-bar ${selector}`).first().innerText();
+		assert(await topBarText('.studio-project-name') === 'sample-project', 'the top bar shows the project');
+		assert((await topBarText('.studio-branch')).trim() === 'main', 'and its branch');
+		assert(await isShown('.studio-top-bar .studio-go-to-anything'), 'and Go to anything');
+		assert((await topBarText('.studio-open-file.studio-active')).includes('cart.ts') && await page.locator('.studio-top-bar .studio-open-file').count() > 1, 'the open files are pills, the active one marked');
+		assert((await topBarText('.studio-segment.studio-active')) === 'Canvas', 'the view switch shows Canvas for a canvas');
+		const projectButton = await box('.studio-top-bar .studio-project');
+		assert(Math.round(projectButton.y) === 12 && Math.round(projectButton.height) === 36, 'the top bar buttons are 36px high, 12px from the top');
 		const editor = await box('.studio-shell > .part.editor');
 		assert(Math.round(editor.x) === 0 && Math.round(editor.width) === window.width, 'a canvas lies under the floating panels');
 		const dock = await box('.code-canvas-editor .cc-dock');
@@ -69,6 +84,32 @@ const assert = (condition, message) => {
 		const rightPill = await box('.studio-shell > .part.statusbar > .right-items');
 		assert(Math.round(leftPill.x) === 12 && Math.round(rightPill.x + rightPill.width) === window.width - 12 && leftPill.x + leftPill.width < rightPill.x, 'the status bar is two pills in the bottom corners');
 		await page.screenshot({ path: path.join(screenshots, 'studio-layout-canvas.png') });
+
+		await page.locator('.studio-top-bar .studio-segment:text-is("Code")').click();
+		await page.waitForSelector('.part.editor .monaco-editor .view-lines', { timeout: 10000 });
+		assert((await topBarText('.studio-segment.studio-active')) === 'Code' && !await isShown('.code-canvas-editor'), 'Code switches the file to the text editor');
+		await page.locator('.studio-top-bar .studio-segment:text-is("Canvas")').click();
+		await page.waitForSelector('.code-canvas-editor .cc-block', { timeout: 10000 });
+		assert((await topBarText('.studio-segment.studio-active')) === 'Canvas', 'and Canvas back to the canvas');
+
+		if (!await isShown('.studio-shell > .part.auxiliarybar')) {
+			await page.locator('.studio-top-bar button[aria-label="Toggle Assistant"]').click();
+			await page.waitForTimeout(1000);
+		}
+		assert(await isShown('.studio-shell > .part.auxiliarybar') && (await page.locator('.studio-assistant-header .studio-assistant-title').innerText()) === 'Assistant', 'the assistant button opens the Assistant, with its own header');
+		await page.locator('.studio-assistant-header button[aria-label="Close Assistant"]').click();
+		await page.waitForTimeout(500);
+		assert(!await isShown('.studio-shell > .part.auxiliarybar'), 'and its × closes it');
+		await page.locator('.studio-top-bar button[aria-label="Toggle Assistant"]').click();
+		await page.waitForTimeout(500);
+
+		await page.locator('.studio-top-bar button[aria-label="Switch between the light and dark theme"]').click();
+		await page.waitForTimeout(1500);
+		assert(await workbenchColor('studio.ink') === '#8a5d0e', 'the theme button switches to Studio Light');
+		await page.screenshot({ path: path.join(screenshots, 'studio-layout-light.png') });
+		await page.locator('.studio-top-bar button[aria-label="Switch between the light and dark theme"]').click();
+		await page.waitForTimeout(1500);
+		assert(await workbenchColor('studio.ink') === '#e8c27a', 'and back to Studio Dark');
 
 		await openFile('tsconfig.json');
 		const textEditor = await box('.studio-shell > .part.editor');
@@ -84,7 +125,6 @@ const assert = (condition, message) => {
 		await page.waitForTimeout(500);
 		assert(!await isShown('.studio-shell > .part.panel'), 'and the drawer hides again');
 	};
-	const workbenchColor = (name: string) => page.evaluate(variable => getComputedStyle(document.querySelector('.monaco-workbench')!).getPropertyValue(variable).trim().toLowerCase(), `--vscode-${name.replace('.', '-')}`);
 
 	try {
 		await setUserSettings({ 'workbench.colorTheme': 'Studio Dark' });
