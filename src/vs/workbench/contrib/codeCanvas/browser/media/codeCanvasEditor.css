@@ -54,3 +54,84 @@
 	left: calc(var(--studio-free-left) + (100% - var(--studio-free-left) - var(--studio-free-right)) / 2);
 	max-width: calc(100% - var(--studio-free-left) - var(--studio-free-right) - 24px);
 }
+
+/* Split: the canvas keeps to the left of the code panel (codeCanvasEditor.ts places both). */
+.monaco-workbench .code-canvas-editor.code-canvas-split .cc-dock,
+.monaco-workbench .code-canvas-editor.code-canvas-split .cc-refs {
+	left: calc(var(--studio-free-left, 0px) + (100% - var(--studio-free-left, 0px) - var(--code-canvas-split-right)) / 2);
+	max-width: calc(100% - var(--studio-free-left, 0px) - var(--code-canvas-split-right) - 24px);
+}
+
+.monaco-workbench .code-canvas-editor.code-canvas-split .cc-minimap {
+	display: none;
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel {
+	position: absolute;
+	z-index: 40;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 14px;
+	background: var(--vscode-studio-panel);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel-header {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 44px;
+	padding: 0 10px 0 14px;
+	border-bottom: 1px solid var(--vscode-studio-divider);
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel-folder {
+	color: var(--vscode-studio-faint);
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel-file {
+	color: var(--vscode-studio-strong);
+	font-weight: 500;
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel-block {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	padding: 2px 8px 2px 4px;
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--code-canvas-kind) 16%, transparent);
+	color: var(--code-canvas-kind);
+	font-size: 11.5px;
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel-spacer {
+	flex: 1;
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel-close {
+	width: 28px;
+	height: 28px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--vscode-studio-faint);
+	font-size: 16px;
+	cursor: pointer;
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel-close:hover {
+	background: var(--vscode-studio-raised);
+	color: var(--vscode-studio-strong);
+}
+
+.monaco-workbench .code-canvas-editor .code-canvas-code-panel-editor {
+	flex: 1;
+	min-height: 0;
+}

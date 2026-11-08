@@ -7,7 +7,7 @@ import type * as CodeCanvasEngine from '@codecanvas-ide/engine/dist/codecanvas-e
 import { importAMDNodeModule } from '../../../../amdX.js';
 
 export type Engine = typeof CodeCanvasEngine;
-export type { CodeCanvas, ConfigFile, EditorHandle, EditorOptions, FileLayout, FileModel, HostDiagnostic, OtherFileChange, ProjectServer, RemoteProject, Workspace } from '@codecanvas-ide/engine/dist/codecanvas-engine.js';
+export type { BlockLines, CodeCanvas, ConfigFile, EditorHandle, EditorOptions, FileLayout, FileModel, HostDiagnostic, OtherFileChange, ProjectServer, RemoteProject, Workspace } from '@codecanvas-ide/engine/dist/codecanvas-engine.js';
 
 let engineLoading: Promise<Engine> | undefined;
 

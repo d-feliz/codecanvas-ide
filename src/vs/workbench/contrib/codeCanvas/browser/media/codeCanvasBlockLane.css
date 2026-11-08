@@ -1,0 +1,72 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) CodeCanvas contributors. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.monaco-editor .code-canvas-block-lane {
+	position: absolute;
+	top: 0;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.monaco-editor .code-canvas-block-lane .code-canvas-lane-bar {
+	position: absolute;
+	right: 8px;
+	width: 3px;
+	border-radius: 2px;
+	background: var(--code-canvas-kind);
+}
+
+.monaco-editor .code-canvas-block-lane .code-canvas-lane-bar.code-canvas-lane-selected {
+	background: var(--vscode-studio-strong);
+	z-index: 1;
+}
+
+.monaco-editor .code-canvas-block-lane .code-canvas-lane-chip {
+	position: absolute;
+	right: 17px;
+	max-width: calc(100% - 21px);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	padding: 0 7px 0 4px;
+	border: 0;
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--code-canvas-kind) 16%, transparent);
+	color: var(--code-canvas-kind);
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 11px;
+	white-space: nowrap;
+	overflow: hidden;
+	cursor: pointer;
+	pointer-events: auto;
+}
+
+.monaco-editor .code-canvas-block-lane-glyphs .code-canvas-lane-chip {
+	right: 13px;
+	max-width: calc(100% - 13px);
+	padding: 0 4px;
+}
+
+.monaco-editor .code-canvas-block-lane .code-canvas-lane-chip.code-canvas-lane-selected {
+	box-shadow: 0 0 0 1px var(--code-canvas-kind);
+}
+
+.monaco-editor .code-canvas-block-lane .code-canvas-lane-glyph {
+	font-weight: 600;
+}
+
+.monaco-editor .code-canvas-block-lane .code-canvas-lane-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.monaco-editor .code-canvas-selected-block-line {
+	background: var(--vscode-studio-selectedLines);
+}
+
+.monaco-editor .margin-view-overlays .line-numbers.code-canvas-selected-block-line-number {
+	color: var(--vscode-studio-strong);
+}

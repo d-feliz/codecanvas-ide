@@ -126,6 +126,73 @@ const assert = (condition, message) => {
 		await page.locator('.studio-top-bar .studio-segment:text-is("Code")').click();
 		await page.waitForSelector('.part.editor .monaco-editor .view-lines', { timeout: 10000 });
 		assert((await topBarText('.studio-segment.studio-active')) === 'Code' && !await isShown('.code-canvas-editor'), 'Code switches the file to the text editor');
+		// Reopening cart.ts brings back its scroll position, so this takes the first chip in view.
+		const laneChip = page.locator('.part.editor .code-canvas-block-lane .code-canvas-lane-chip').first();
+		await laneChip.waitFor({ timeout: 15000 }).catch(() => { });
+		const chipBox = await laneChip.boundingBox();
+		const chipBlockName = (await laneChip.getAttribute('data-block-id') ?? '').split('/').pop()!;
+		const codeText = await box('.part.editor .monaco-editor .view-lines');
+		assert(!!chipBox && !!chipBlockName && (await laneChip.innerText()).includes(chipBlockName) && chipBox.x + chipBox.width < codeText.x, 'the Code view has a block lane: a chip with the glyph and name at each block, left of the code');
+		await laneChip.click();
+		await page.waitForTimeout(300);
+		assert(await page.locator('.part.editor .monaco-editor .code-canvas-selected-block-line').count() > 0, 'a click on a chip tints the block\'s lines');
+
+		await page.locator('.studio-top-bar .studio-segment:text-is("Split")').click();
+		await page.waitForSelector('.code-canvas-editor .code-canvas-code-panel .monaco-editor', { timeout: 15000 });
+		await page.waitForTimeout(1000);
+		const codePanel = await box('.code-canvas-editor .code-canvas-code-panel');
+		const splitDock = await box('.code-canvas-editor .cc-dock');
+		assert((await topBarText('.studio-segment.studio-active')) === 'Split' && splitDock.x + splitDock.width < codePanel.x, 'Split shows the canvas with the code beside it, the dock on the canvas side');
+		await page.locator('.code-canvas-code-panel .monaco-editor .view-lines').click();
+		await page.keyboard.press('Meta+ArrowUp');
+		await page.waitForTimeout(800);
+		const firstBlockId = await page.locator('.code-canvas-code-panel .code-canvas-lane-chip').first().getAttribute('data-block-id');
+		assert(await page.locator(`.code-canvas-editor .cc-block[data-id="${firstBlockId}"]`).evaluate(e => e.classList.contains('cc-sel')), 'moving the cursor into a block in the code selects it on the canvas');
+		const useCouponChip = page.locator('.code-canvas-code-panel .code-canvas-lane-chip[data-block-id="Cart/useCoupon"]');
+		await useCouponChip.waitFor({ timeout: 10000 }).catch(() => { });
+		await useCouponChip.click();
+		await page.waitForTimeout(800);
+		assert(await page.locator('.code-canvas-editor .cc-block[data-id="Cart/useCoupon"]').evaluate(e => e.classList.contains('cc-sel')), 'picking a block in the code selects it on the canvas');
+		await page.keyboard.press('Meta+k');
+		await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
+		await page.keyboard.type('subtotal');
+		await page.waitForTimeout(500);
+		await page.keyboard.press('Enter');
+		await page.waitForTimeout(800);
+		const selectedBlockLabel = () => page.locator('.code-canvas-code-panel .code-canvas-code-panel-block').innerText();
+		assert((await selectedBlockLabel()).includes('subtotal') && await page.locator('.code-canvas-code-panel .code-canvas-selected-block-line').count() > 0, 'and a block selected on the canvas is tinted in the code');
+		await page.screenshot({ path: path.join(screenshots, 'studio-layout-split.png') });
+		await page.locator('.code-canvas-code-panel button[aria-label="Close Code Panel"]').click();
+		await page.waitForTimeout(500);
+		assert(!await isShown('.code-canvas-code-panel') && (await topBarText('.studio-segment.studio-active')) === 'Canvas', 'the code panel\'s × goes back to the canvas');
+
+		await page.locator('.code-canvas-editor .cc-selbar button:text-is("Open code")').click();
+		await page.waitForSelector('.code-canvas-code-panel .monaco-editor.focused', { timeout: 10000 }).catch(() => { });
+		assert(await isShown('.code-canvas-code-panel .monaco-editor.focused') && (await selectedBlockLabel()).includes('subtotal'), 'Open code on a block opens Split at the block, with the cursor in the code');
+		await page.locator('.code-canvas-code-panel button[aria-label="Close Code Panel"]').click();
+		await page.waitForTimeout(500);
+
+		await page.keyboard.press('Meta+k');
+		await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
+		await page.keyboard.type('split view');
+		await page.waitForTimeout(500);
+		assert(await page.locator('.quick-input-widget .monaco-list-row:has-text("Open in split view")').count() === 1, 'Go to anything has Open in split view');
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('Meta+k');
+		await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
+		await page.keyboard.type('add function');
+		await page.waitForTimeout(500);
+		assert(await page.locator('.quick-input-widget .monaco-list-row:has-text("Add function")').count() === 1, 'and Add function');
+		await page.keyboard.press('Escape');
+
+		await page.locator('.code-canvas-editor .cc-selbar button:text-is("Ask")').click();
+		await page.waitForSelector('.studio-shell > .part.auxiliarybar .interactive-input-part', { state: 'visible', timeout: 10000 }).catch(() => { });
+		const chatInput = await page.locator('.studio-shell > .part.auxiliarybar .interactive-input-part .view-lines').first().innerText().catch(() => '');
+		// Monaco shows spaces as no-break spaces.
+		assert(chatInput.replace(/\u00a0/g, ' ').includes('Explain subtotal'), 'Ask on a block opens the Assistant about it');
+
+		await page.locator('.studio-top-bar .studio-segment:text-is("Code")').click();
+		await page.waitForSelector('.part.editor .monaco-editor .view-lines', { timeout: 10000 });
 		await page.locator('.studio-top-bar .studio-segment:text-is("Canvas")').click();
 		await page.waitForSelector('.code-canvas-editor .cc-block', { timeout: 10000 });
 		assert((await topBarText('.studio-segment.studio-active')) === 'Canvas', 'and Canvas back to the canvas');

@@ -24,23 +24,14 @@ import { IHistoryService } from '../../../services/history/common/history.js';
 import { QueryBuilder } from '../../../services/search/common/queryBuilder.js';
 import { ISearchService } from '../../../services/search/common/search.js';
 import { IWorkbenchThemeService } from '../../../services/themes/common/workbenchThemeService.js';
-import { CodeCanvasBlockSummary, CodeCanvasEditor } from '../../codeCanvas/browser/codeCanvasEditor.js';
+import { CodeCanvasEditor } from '../../codeCanvas/browser/codeCanvasEditor.js';
+import { CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID } from '../../codeCanvas/common/codeCanvas.js';
 
 export const STUDIO_GO_TO_ANYTHING_COMMAND_ID = 'studio.goToAnything';
 export const STUDIO_TOGGLE_THEME_COMMAND_ID = 'studio.toggleTheme';
 
 const COMMANDS_PREFIX = '>';
 const MOST_FILES_SHOWN = 20;
-/** Glyphs of the canvas's block kinds (as on the blocks), so a node reads the same in the palette. */
-// allow-any-unicode-next-line
-const KIND_GLYPH: Record<string, string> = { import: '↓', class: 'C', function: 'ƒ', component: '⟨⟩', state: '◆', variable: '=', type: 'T', namespace: '{}', statement: '▸' };
-const TYPE_KEYWORD_GLYPH = new Map([['interface', 'I'], ['type', 'T'], ['enum', 'E']]);
-
-function glyphOf(block: CodeCanvasBlockSummary): string {
-	const typeKeyword = block.kind === 'type' ? block.tags.find(tag => TYPE_KEYWORD_GLYPH.has(tag)) : undefined;
-	return (typeKeyword && TYPE_KEYWORD_GLYPH.get(typeKeyword)) || KIND_GLYPH[block.kind] || '·';
-}
-
 type GoToAnythingItem = IQuickPickItem & { run: () => unknown };
 
 registerAction2(class GoToAnythingAction extends Action2 {
@@ -151,7 +142,7 @@ class GoToAnythingPicker {
 		}
 		const blocks = canvasEditor.getBlocks();
 		return blocks.map(block => ({
-			label: `${glyphOf(block)}  ${block.name}`,
+			label: `${block.glyph}  ${block.name}`,
 			description: block.detail,
 			run: () => canvasEditor.revealBlock(block.id),
 		}));
@@ -181,8 +172,12 @@ class GoToAnythingPicker {
 
 	private actionItems(): GoToAnythingItem[] {
 		const action = (label: string, commandId: string): GoToAnythingItem => ({ label, run: () => this.commandService.executeCommand(commandId) });
-		const canvasIsActive = this.editorService.activeEditorPane instanceof CodeCanvasEditor;
+		const activePane = this.editorService.activeEditorPane;
+		const canvasIsActive = activePane instanceof CodeCanvasEditor;
+		const canvasIsAlone = canvasIsActive && activePane.getViewMode() === 'canvas';
 		return [
+			...(canvasIsActive ? [action(localize('studio.addFunction', "Add function"), 'codeCanvas.addFunction')] : []),
+			...(canvasIsAlone ? [action(localize('studio.openInSplitView', "Open in split view"), CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID)] : []),
 			...(canvasIsActive ? [action(localize('studio.showChanges', "Show or hide changes"), 'codeCanvas.toggleChanges')] : []),
 			action(localize('studio.switchTheme', "Switch between the light and dark theme"), STUDIO_TOGGLE_THEME_COMMAND_ID),
 			action(localize('studio.toggleAssistantAction', "Show or hide the Assistant"), 'workbench.action.toggleAuxiliaryBar'),

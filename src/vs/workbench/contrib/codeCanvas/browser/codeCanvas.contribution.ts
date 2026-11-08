@@ -18,7 +18,7 @@ import { EditorPaneDescriptor, IEditorPaneRegistry } from '../../../browser/edit
 import { REOPEN_ACTIVE_EDITOR_WITH_COMMAND_ID } from '../../../browser/parts/editor/editorCommands.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
 import { ActiveEditorContext, ResourceContextKey } from '../../../common/contextkeys.js';
-import { DEFAULT_EDITOR_ASSOCIATION, EditorExtensions, IEditorFactoryRegistry, IEditorSerializer } from '../../../common/editor.js';
+import { DEFAULT_EDITOR_ASSOCIATION, EditorExtensions, EditorResourceAccessor, IEditorFactoryRegistry, IEditorSerializer } from '../../../common/editor.js';
 import { IEditorResolverService, RegisteredEditorPriority } from '../../../services/editor/common/editorResolverService.js';
 import { TEXT_FILE_EDITOR_ID } from '../../files/common/files.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
@@ -26,10 +26,12 @@ import { Schemas } from '../../../../base/common/network.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { Extensions as ConfigurationExtensions, IConfigurationRegistry } from '../../../../platform/configuration/common/configurationRegistry.js';
 import { Extensions as WorkbenchConfigurationExtensions, IConfigurationMigrationRegistry } from '../../../common/configuration.js';
-import { CODE_CANVAS_DEFAULT_SETTING, CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
-import { CodeCanvasEditor } from './codeCanvasEditor.js';
+import { CODE_CANVAS_DEFAULT_SETTING, CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
+import { CodeCanvasEditor, CodeCanvasViewMode, codeCanvasViewModeStorageKey } from './codeCanvasEditor.js';
+import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
 import { studioWindowFillingEditorIds } from '../../../browser/studio/studioShell.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
+import { CodeCanvasCodeViewLanes } from './codeCanvasCodeViewLanes.js';
 import { CodeCanvasProjectService, ICodeCanvasProjectService } from './codeCanvasProjects.js';
 
 registerSingleton(ICodeCanvasProjectService, CodeCanvasProjectService, InstantiationType.Delayed);
@@ -120,6 +122,7 @@ const isOnDisk = (resource: URI) => resource.scheme === Schemas.file || resource
 const isMinified = (resource: URI) => /\.min\.[cm]?js$/.test(resource.path);
 
 registerWorkbenchContribution2(CodeCanvasEditorResolverContribution.ID, CodeCanvasEditorResolverContribution, WorkbenchPhase.BlockStartup);
+registerWorkbenchContribution2(CodeCanvasCodeViewLanes.ID, CodeCanvasCodeViewLanes, WorkbenchPhase.AfterRestored);
 
 const isCanvasFile = ContextKeyExpr.or(...CODE_CANVAS_FILE_EXTENSIONS.map(extension => ResourceContextKey.Extension.isEqualTo(extension)));
 const textEditorOnCanvasFile = ContextKeyExpr.and(ActiveEditorContext.isEqualTo(TEXT_FILE_EDITOR_ID), isCanvasFile);
@@ -133,13 +136,62 @@ registerAction2(class OpenAsCanvasAction extends Action2 {
 			category: localize2('codeCanvas.category', "Code Canvas"),
 			icon: Codicon.typeHierarchy,
 			f1: true,
-			precondition: textEditorOnCanvasFile,
+			precondition: ContextKeyExpr.or(textEditorOnCanvasFile, canvasEditorActive),
 			menu: { id: MenuId.EditorTitle, group: 'navigation', when: textEditorOnCanvasFile },
 		});
 	}
 
-	run(accessor: ServicesAccessor, ...args: unknown[]): Promise<unknown> {
-		return accessor.get(ICommandService).executeCommand(REOPEN_ACTIVE_EDITOR_WITH_COMMAND_ID, CODE_CANVAS_EDITOR_ID, ...args);
+	async run(accessor: ServicesAccessor, ...args: unknown[]): Promise<unknown> {
+		return openCanvasIn(accessor, 'canvas', args);
+	}
+});
+
+registerAction2(class OpenAsSplitAction extends Action2 {
+	constructor() {
+		super({
+			id: CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID,
+			title: localize2('codeCanvas.openAsSplit', "Open in Split View"),
+			category: localize2('codeCanvas.category', "Code Canvas"),
+			f1: true,
+			precondition: ContextKeyExpr.or(textEditorOnCanvasFile, canvasEditorActive),
+		});
+	}
+
+	async run(accessor: ServicesAccessor, ...args: unknown[]): Promise<unknown> {
+		return openCanvasIn(accessor, 'split', args);
+	}
+});
+
+/** The canvas, alone or with the code beside it. From the text editor, the file reopens as a canvas. */
+async function openCanvasIn(accessor: ServicesAccessor, viewMode: CodeCanvasViewMode, args: unknown[]): Promise<unknown> {
+	const editorService = accessor.get(IEditorService);
+	const activePane = editorService.activeEditorPane;
+	if (activePane instanceof CodeCanvasEditor) {
+		return activePane.setViewMode(viewMode);
+	}
+	const resource = EditorResourceAccessor.getOriginalUri(editorService.activeEditor);
+	if (resource) {
+		accessor.get(IStorageService).store(codeCanvasViewModeStorageKey(resource), viewMode, StorageScope.WORKSPACE, StorageTarget.MACHINE);
+	}
+	return accessor.get(ICommandService).executeCommand(REOPEN_ACTIVE_EDITOR_WITH_COMMAND_ID, CODE_CANVAS_EDITOR_ID, ...args);
+}
+
+registerAction2(class AddFunctionAction extends Action2 {
+	constructor() {
+		super({
+			id: 'codeCanvas.addFunction',
+			title: localize2('codeCanvas.addFunction', "Add Function"),
+			category: localize2('codeCanvas.category', "Code Canvas"),
+			f1: true,
+			precondition: canvasEditorActive,
+		});
+	}
+
+	run(accessor: ServicesAccessor): void {
+		const activePane = accessor.get(IEditorService).activeEditorPane;
+		if (activePane instanceof CodeCanvasEditor) {
+			activePane.addFunction();
+		}
 	}
 });
 
