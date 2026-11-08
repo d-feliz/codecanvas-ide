@@ -464,9 +464,20 @@ export class CodeCanvasEditor extends EditorPane {
 		editor.setSelection(Range.fromPositions(model.getPositionAt(start + selectionStart), model.getPositionAt(start + selectionEnd)));
 		editor.revealRangeInCenterIfOutsideViewport(editor.getSelection()!);
 
+		// Enter on the blank line after the block's closing brace: the block is done.
+		const isFinishingBlock = () => {
+			const blockRange = model.getDecorationRange(blockDecorationId);
+			const cursor = editor.getPosition();
+			if (!blockRange || !cursor || !this.engine) {
+				return false;
+			}
+			const blockStart = model.getOffsetAt(blockRange.getStartPosition());
+			return this.engine.isFinishingBlock(model.getValueInRange(blockRange), model.getOffsetAt(cursor) - blockStart);
+		};
 		disposables.add(editor.onKeyDown(e => {
 			const isSuggestOpen = editor.invokeWithinContext(accessor => accessor.get(IContextKeyService).getContextKeyValue<boolean>('suggestWidgetVisible'));
-			const isClose = (e.keyCode === KeyCode.Escape && !isSuggestOpen) || (e.keyCode === KeyCode.Enter && (e.metaKey || e.ctrlKey));
+			const isPlainEnter = e.keyCode === KeyCode.Enter && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+			const isClose = (e.keyCode === KeyCode.Escape && !isSuggestOpen) || (e.keyCode === KeyCode.Enter && (e.metaKey || e.ctrlKey)) || (isPlainEnter && !isSuggestOpen && isFinishingBlock());
 			if (isClose) {
 				e.preventDefault();
 				e.stopPropagation();

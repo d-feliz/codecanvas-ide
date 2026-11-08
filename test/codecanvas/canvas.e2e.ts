@@ -154,6 +154,37 @@ const assert = (condition, message) => {
 	assert(await isSelected('Cart/total'), 'and keeps the block selected');
 	assert((await block('Cart/total').locator('.cc-prev').innerText()).includes('const marker = 1;'), 'the edit shows in the block preview');
 	assert(await isActiveTabDirty(), 'the edit made the file dirty (same document as the text editor)');
+	await block('Cart/total').locator('.cc-head').click();
+	await page.waitForSelector(`${blockEditor} .view-lines`, { timeout: 10000 });
+	await page.locator(`${blockEditor} .view-lines`).click();
+	await page.keyboard.press('Meta+ArrowDown');
+	await page.keyboard.press('End');
+	await page.keyboard.press('Enter');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(300);
+	assert(!(await page.locator(`${canvas} .cc-editor`).count()), 'Enter twice after the block\'s closing brace closes the block editor');
+	const emptySpot = await page.evaluate(canvasSelector => {
+		const root = document.querySelector(`${canvasSelector} .cc-root`)!.getBoundingClientRect();
+		for (let y = root.top + 80; y < root.bottom - 80; y += 20) {
+			for (let x = root.left + 40; x < root.right - 40; x += 20) {
+				const target = document.elementFromPoint(x, y);
+				const isEmptyCanvas = !!target?.closest(canvasSelector) && !target.closest('.cc-block, .cc-bar, .cc-selbar, .cc-minimap, .cc-editor, .cc-menu, .cc-refs, .cc-banner, .cc-dock');
+				if (isEmptyCanvas) {
+					return { x, y };
+				}
+			}
+		}
+		return null;
+	}, canvas);
+	await page.mouse.dblclick(emptySpot!.x, emptySpot!.y);
+	await page.waitForSelector(`${blockEditor} .view-lines`, { timeout: 10000 });
+	const emptyBlockTitle = await page.locator(`${canvas} .cc-editor-head`).innerText();
+	await page.keyboard.type('const deliveryFee = 2;');
+	await page.waitForSelector(`${canvas} .cc-block[data-id="deliveryFee"]`, { timeout: 10000 }).catch(() => { });
+	assert(emptyBlockTitle.includes('New block') && await block('deliveryFee').count() === 1, 'double-click on empty space starts an empty block, and its code becomes a block');
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('Delete');
+	await page.waitForTimeout(500);
 
 	// undo goes through the document
 	await page.locator(`${canvas} .cc-root`).focus();
