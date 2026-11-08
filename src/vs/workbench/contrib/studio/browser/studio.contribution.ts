@@ -4,7 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 
 import './media/studioChrome.css';
+import { KeyCode, KeyMod } from '../../../../base/common/keyCodes.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
+import { KeybindingsRegistry, KeybindingWeight } from '../../../../platform/keybinding/common/keybindingsRegistry.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { getStudioChromeSlots } from '../../../browser/studio/studioShell.js';
@@ -57,3 +59,8 @@ class StudioChromeContribution extends Disposable implements IWorkbenchContribut
 }
 
 registerWorkbenchContribution2(StudioChromeContribution.ID, StudioChromeContribution, WorkbenchPhase.BlockRestore);
+
+// As in a browser, ⌘[ and ⌘] go back and forward like the top bar's arrows, also in code editors
+// (where they would outdent and indent lines; Shift+Tab and Tab still do).
+KeybindingsRegistry.registerKeybindingRule({ id: 'workbench.action.navigateBack', primary: KeyMod.CtrlCmd | KeyCode.BracketLeft, when: StudioLayoutContext, weight: KeybindingWeight.WorkbenchContrib });
+KeybindingsRegistry.registerKeybindingRule({ id: 'workbench.action.navigateForward', primary: KeyMod.CtrlCmd | KeyCode.BracketRight, when: StudioLayoutContext, weight: KeybindingWeight.WorkbenchContrib });

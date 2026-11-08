@@ -89,6 +89,13 @@ const assert = (condition, message) => {
 		assert(['Close', 'Close Others', 'Close to the Right', 'Close All'].every(label => openFileMenu.includes(label)), 'right-clicking an open file shows the tab menu (' + openFileMenu.filter(Boolean).slice(0, 6).join(', ') + ')');
 		await page.keyboard.press('Escape');
 		assert((await topBarText('.studio-segment.studio-active')) === 'Canvas', 'the view switch shows Canvas for a canvas');
+		await page.locator('.code-canvas-editor .cc-root').focus();
+		await page.keyboard.press('Meta+BracketLeft');
+		await page.waitForTimeout(1000);
+		const afterBack = await topBarText('.studio-open-file.studio-active');
+		await page.keyboard.press('Meta+BracketRight');
+		await page.waitForTimeout(1000);
+		assert(afterBack.includes('catalog.ts') && (await topBarText('.studio-open-file.studio-active')).includes('cart.ts'), 'Cmd+[ and Cmd+] go back and forward, like the top bar\'s arrows');
 		const projectButton = await box('.studio-top-bar .studio-project');
 		assert(Math.round(projectButton.y) === 12 && Math.round(projectButton.height) === 36, 'the top bar buttons are 36px high, 12px from the top');
 
