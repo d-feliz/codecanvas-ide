@@ -54,3 +54,8 @@
 	left: calc(var(--studio-free-left) + (100% - var(--studio-free-left) - var(--studio-free-right)) / 2);
 	max-width: calc(100% - var(--studio-free-left) - var(--studio-free-right) - 24px);
 }
+
+/* In Studio the canvas fills the window, so VS Code's focus outline would frame the whole window; the selected block's ring shows focus. */
+.monaco-workbench .studio-editor-fills-window .code-canvas-editor .cc-root:focus {
+	outline: none;
+}

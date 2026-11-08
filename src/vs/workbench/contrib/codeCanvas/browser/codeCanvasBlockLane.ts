@@ -11,6 +11,7 @@ import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.j
 import { ICodeEditor, IOverlayWidget } from '../../../../editor/browser/editorBrowser.js';
 import { EditorOption } from '../../../../editor/common/config/editorOptions.js';
 import { ITextModel } from '../../../../editor/common/model.js';
+import { StickyScrollController } from '../../../../editor/contrib/stickyScroll/browser/stickyScrollController.js';
 import { localize } from '../../../../nls.js';
 import { BlockLines, Engine, loadEngine } from './codeCanvasEngine.js';
 
@@ -40,6 +41,8 @@ export class CodeCanvasBlockLane extends Disposable implements IOverlayWidget {
 	private engine: Engine | undefined;
 	private selectedBlockId: string | null = null;
 	private readonly lineNumbersMinCharsBefore: number;
+	/** The pinned lines of sticky scroll cover the top of the lane. */
+	private stickyScrollHeight = 0;
 
 	private readonly _onDidPickBlock = this._register(new Emitter<string>());
 	/** A chip was clicked. */
@@ -71,6 +74,13 @@ export class CodeCanvasBlockLane extends Disposable implements IOverlayWidget {
 		this._register(editor.onDidScrollChange(() => this.render()));
 		this._register(editor.onDidLayoutChange(() => this.render()));
 		this._register(editor.onDidChangeModel(() => this.watchModel()));
+		const stickyScroll = StickyScrollController.get(editor);
+		if (stickyScroll) {
+			this._register(stickyScroll.onDidChangeStickyScrollHeight(({ height }) => {
+				this.stickyScrollHeight = height;
+				this.render();
+			}));
+		}
 		this._register(addDisposableListener(this.laneElement, EventType.MOUSE_DOWN, e => this.pickChipAt(e)));
 		this.watchModel();
 	}
@@ -194,9 +204,10 @@ export class CodeCanvasBlockLane extends Disposable implements IOverlayWidget {
 			bar.style.height = `${topOf(block.endLine) + lineHeight - topOf(block.startLine)}px`;
 			bar.style.setProperty('--code-canvas-kind', kindColor);
 
-			const chipIsVisible = block.declarationLine >= firstVisibleLine && block.declarationLine <= lastVisibleLine;
+			const chipTop = topOf(block.declarationLine);
+			const chipIsVisible = block.declarationLine >= firstVisibleLine && block.declarationLine <= lastVisibleLine && chipTop >= this.stickyScrollHeight;
 			if (chipIsVisible) {
-				this.renderChip(block, kindColor, topOf(block.declarationLine), lineHeight, isSelected);
+				this.renderChip(block, kindColor, chipTop, lineHeight, isSelected);
 			}
 		}
 	}

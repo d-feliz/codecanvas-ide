@@ -121,6 +121,9 @@ const assert = (condition, message) => {
 		const leftPill = await box('.studio-shell > .part.statusbar > .left-items');
 		const rightPill = await box('.studio-shell > .part.statusbar > .right-items');
 		assert(Math.round(leftPill.x) === 12 && Math.round(rightPill.x + rightPill.width) === window.width - 12 && leftPill.x + leftPill.width < rightPill.x, 'the status bar is two pills in the bottom corners');
+		await page.locator('.code-canvas-editor .cc-root').focus();
+		const canvasOutline = await page.locator('.code-canvas-editor .cc-root').evaluate(e => getComputedStyle(e).outlineStyle);
+		assert(canvasOutline === 'none', 'the focused canvas draws no focus outline around the window');
 		await page.screenshot({ path: path.join(screenshots, 'studio-layout-canvas.png') });
 
 		await page.locator('.studio-top-bar .studio-segment:text-is("Code")').click();
