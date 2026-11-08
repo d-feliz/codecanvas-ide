@@ -174,12 +174,26 @@
 }
 
 .monaco-workbench .studio-top-bar .studio-close-file {
-	margin-left: 2px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	margin: 0 -6px 0 0;
+	border-radius: 6px;
 	color: var(--vscode-studio-faint);
+	font-size: 15px;
+	line-height: 1;
 }
 
 .monaco-workbench .studio-top-bar .studio-close-file:hover {
+	background: var(--vscode-studio-raised);
 	color: var(--vscode-studio-strong);
+}
+
+/* Other open files show their × on hover; it keeps its room, so the pills don't shift. */
+.monaco-workbench .studio-top-bar .studio-open-file:not(.studio-active):not(:hover) .studio-close-file {
+	visibility: hidden;
 }
 
 /* Right group */

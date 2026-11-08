@@ -81,6 +81,13 @@ const assert = (condition, message) => {
 		assert((await topBarText('.studio-branch')).trim() === 'main', 'and its branch');
 		assert(await isShown('.studio-top-bar .studio-go-to-anything'), 'and Go to anything');
 		assert((await topBarText('.studio-open-file.studio-active')).includes('cart.ts') && await page.locator('.studio-top-bar .studio-open-file').count() > 1, 'the open files are pills, the active one marked');
+		const closeButton = await box('.studio-top-bar .studio-open-file.studio-active .studio-close-file');
+		assert(closeButton.width >= 20 && closeButton.height >= 20, 'an open file\'s × is big enough to click');
+		await page.locator('.studio-top-bar .studio-open-file').first().click({ button: 'right' });
+		await page.waitForSelector('.context-view .monaco-menu .action-label:visible', { timeout: 5000 }).catch(() => { });
+		const openFileMenu = await page.locator('.context-view .monaco-menu .action-label:visible').allInnerTexts();
+		assert(['Close', 'Close Others', 'Close to the Right', 'Close All'].every(label => openFileMenu.includes(label)), 'right-clicking an open file shows the tab menu (' + openFileMenu.filter(Boolean).slice(0, 6).join(', ') + ')');
+		await page.keyboard.press('Escape');
 		assert((await topBarText('.studio-segment.studio-active')) === 'Canvas', 'the view switch shows Canvas for a canvas');
 		const projectButton = await box('.studio-top-bar .studio-project');
 		assert(Math.round(projectButton.y) === 12 && Math.round(projectButton.height) === 36, 'the top bar buttons are 36px high, 12px from the top');

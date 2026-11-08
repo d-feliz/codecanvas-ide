@@ -35,6 +35,7 @@ import { ACCOUNTS_ACTIVITY_ID } from '../../../common/activity.js';
 import { createActivityActionBar, StudioSignedInAccount } from './studioAccount.js';
 import { STUDIO_GO_TO_ANYTHING_COMMAND_ID, STUDIO_TOGGLE_THEME_COMMAND_ID } from './studioGoToAnything.js';
 import { studioIcon } from './studioIcons.js';
+import { StudioOpenFileMenu } from './studioOpenFileMenu.js';
 
 const TYPESCRIPT_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
 const JAVASCRIPT_EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs']);
@@ -65,6 +66,7 @@ export class StudioTopBar extends Disposable {
 	private readonly editorActionsListener = this._register(new DisposableStore());
 	private readonly openFilePillListeners = this._register(new DisposableStore());
 	private hiddenOpenFiles: EditorInput[] = [];
+	private readonly openFileMenu: StudioOpenFileMenu;
 
 	constructor(
 		container: HTMLElement,
@@ -102,6 +104,7 @@ export class StudioTopBar extends Disposable {
 		this.createButton(this.openFiles, 'studio-navigate', localize('studio.forward', "Forward"), () => this.commandService.executeCommand('workbench.action.navigateForward')).append(studioIcon('chevronRight', 12));
 		append(this.openFiles, $('span.studio-divider'));
 		this.openFilesList = append(this.openFiles, $('.studio-open-files-list'));
+		this.openFileMenu = this._register(instantiationService.createInstance(StudioOpenFileMenu, this.openFilesList));
 		this.moreOpenFilesButton = this.createButton(this.openFiles, 'studio-more-files', localize('studio.moreFiles', "More open files"), () => this.showHiddenOpenFiles());
 
 		const rightGroup = append(topBar, $('.studio-top-group.studio-top-right'));
@@ -176,14 +179,17 @@ export class StudioTopBar extends Disposable {
 
 	private listenToActiveGroup(): void {
 		const group = this.editorGroupsService.mainPart.activeGroup;
-		this.activeGroupListener.value = group.onDidModelChange(change => {
+		const groupListeners = new DisposableStore();
+		groupListeners.add(group.onDidModelChange(change => {
 			if (change.kind !== GroupModelChangeKind.EDITOR_LABEL) {
 				this.renderOpenFiles();
 			}
 			if (change.kind === GroupModelChangeKind.EDITOR_ACTIVE) {
 				this.renderEditorActions();
 			}
-		});
+		}));
+		groupListeners.add(group.onDidActiveEditorChange(() => this.renderViewMode()));
+		this.activeGroupListener.value = groupListeners;
 		this.renderOpenFiles();
 		this.renderEditorActions();
 		this.renderViewMode();
@@ -208,19 +214,29 @@ export class StudioTopBar extends Disposable {
 		append(pill, $(`span.studio-file-dot.${this.languageClassOf(editor)}`));
 		append(pill, $('span.studio-open-file-name')).textContent = editor.getName();
 		this.openFilePillListeners.add(addDisposableListener(pill, EventType.CLICK, () => group.openEditor(editor)));
+		this.openFilePillListeners.add(addDisposableListener(pill, EventType.CONTEXT_MENU, event => {
+			event.preventDefault();
+			this.openFileMenu.show(group, editor, event, pill);
+		}));
+		// A middle-click closes the file, as on a tab.
+		this.openFilePillListeners.add(addDisposableListener(pill, EventType.AUXCLICK, event => {
+			const isMiddleClick = event.button === 1;
+			if (isMiddleClick) {
+				event.preventDefault();
+				group.closeEditor(editor);
+			}
+		}));
 		if (editor.isDirty()) {
 			append(pill, $('span.studio-unsaved')).textContent = '●';
 		}
-		if (isActive) {
-			const close = append(pill, $('span.studio-close-file'));
-			close.textContent = '×';
-			close.setAttribute('role', 'button');
-			close.setAttribute('aria-label', localize('studio.closeFile', "Close"));
-			this.openFilePillListeners.add(addDisposableListener(close, EventType.CLICK, event => {
-				event.stopPropagation();
-				group.closeEditor(editor);
-			}));
-		}
+		const close = append(pill, $('span.studio-close-file'));
+		close.textContent = '×';
+		close.setAttribute('role', 'button');
+		close.setAttribute('aria-label', localize('studio.closeFile', "Close {0}", editor.getName()));
+		this.openFilePillListeners.add(addDisposableListener(close, EventType.CLICK, event => {
+			event.stopPropagation();
+			group.closeEditor(editor);
+		}));
 		return pill;
 	}
 
@@ -301,13 +317,17 @@ export class StudioTopBar extends Disposable {
 		}
 	}
 
-	/** Canvas or Code for a TypeScript or JavaScript file, nothing for any other editor. */
+	/**
+	 * Canvas or Code for a TypeScript or JavaScript file, nothing for any other editor. Like the open
+	 * files, it follows the main window's group: editors such as Keyboard Shortcuts open in a modal on top.
+	 */
 	private activeViewMode(): StudioViewMode | undefined {
-		const activePane = this.editorService.activeEditorPane;
+		const group = this.editorGroupsService.mainPart.activeGroup;
+		const activePane = group.activeEditorPane;
 		if (activePane?.getId() === CODE_CANVAS_EDITOR_ID) {
 			return 'canvas';
 		}
-		const resource = EditorResourceAccessor.getOriginalUri(this.editorService.activeEditor);
+		const resource = EditorResourceAccessor.getOriginalUri(group.activeEditor);
 		const isCanvasFileInTextEditor = activePane?.getId() === TEXT_FILE_EDITOR_ID && !!resource && CODE_CANVAS_FILE_EXTENSIONS.includes(extname(resource).toLowerCase());
 		return isCanvasFileInTextEditor ? 'code' : undefined;
 	}
