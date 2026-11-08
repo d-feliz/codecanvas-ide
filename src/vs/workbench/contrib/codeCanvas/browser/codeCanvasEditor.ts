@@ -27,6 +27,8 @@ import { ITextModel, TrackedRangeStickiness } from '../../../../editor/common/mo
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { IResourceUndoRedoElement, IUndoRedoService, UndoRedoElementType } from '../../../../platform/undoRedo/common/undoRedo.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
+import { ILanguageFeaturesService } from '../../../../editor/common/services/languageFeatures.js';
+import { getDefinitionsAtPosition } from '../../../../editor/contrib/gotoSymbol/browser/goToSymbol.js';
 import { localize } from '../../../../nls.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IContextKey, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
@@ -105,6 +107,7 @@ export class CodeCanvasEditor extends EditorPane {
 		@INotificationService private readonly notificationService: INotificationService,
 		@ICommandService private readonly commandService: ICommandService,
 		@IUndoRedoService private readonly undoRedoService: IUndoRedoService,
+		@ILanguageFeaturesService private readonly languageFeaturesService: ILanguageFeaturesService,
 	) {
 		super(CodeCanvasEditor.ID, group, telemetryService, themeService, storageService);
 		this.showsChangesContext = CODE_CANVAS_SHOWS_CHANGES.bindTo(group.scopedContextKeyService);
@@ -249,6 +252,7 @@ export class CodeCanvasEditor extends EditorPane {
 			onUndo: () => void model.undo(),
 			onRedo: () => void model.redo(),
 			onOpenCode: block => this.openCodeAt(model, block),
+			onOpenImport: block => void this.openImportedFile(model, block),
 			onAsk: block => this.askAbout(model, block),
 			onOpenBlock: (otherPath, blockId) => {
 				const resource = joinPath(folder, otherPath);
@@ -334,6 +338,20 @@ export class CodeCanvasEditor extends EditorPane {
 			replacement: { resource: model.uri, options: { override: DEFAULT_EDITOR_ASSOCIATION.id, selection: Range.fromPositions(declaration), pinned: true } },
 			forceReplaceDirty: true,
 		}], this.group);
+	}
+
+	/** ⌘-click on an import block: the file TypeScript finds for its path, as Go to Definition on the path would. */
+	private async openImportedFile(model: ITextModel, block: { start: number; end: number; name: string }) {
+		const importText = model.getValue().slice(block.start, block.end);
+		const quotedSpecifierAt = ['\'', '"', '`'].map(quote => importText.indexOf(quote + block.name + quote)).find(index => index >= 0);
+		if (quotedSpecifierAt === undefined) {
+			return;
+		}
+		const specifierPosition = model.getPositionAt(block.start + quotedSpecifierAt + 1);
+		const [definition] = await getDefinitionsAtPosition(this.languageFeaturesService.definitionProvider, model, specifierPosition, false, CancellationToken.None);
+		if (definition) {
+			await this.editorService.openEditor({ resource: definition.uri });
+		}
 	}
 
 	/** "Ask" on a block: the Assistant, with the block's code attached. */

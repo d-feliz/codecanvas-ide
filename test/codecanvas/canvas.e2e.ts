@@ -216,6 +216,14 @@ const assert = (condition, message) => {
 	const badgeCleared = await page.waitForSelector(`${canvas} .cc-block[data-id="Cart/total"] .cc-err`, { state: 'detached', timeout: 15000 }).then(() => true, () => false);
 	assert(badgeCleared, 'and the error marker goes away');
 
+	// Cmd-click on an import block opens the imported file
+	await selectBlock('import:./catalog');
+	await block('import:./catalog').locator('.cc-head').click({ modifiers: ['Meta'] });
+	await page.waitForFunction(() => document.querySelector('.tabs-container .tab.active')?.textContent?.includes('catalog.ts'), null, { timeout: 15000 }).catch(() => { });
+	assert((await activeTab().innerText()).includes('catalog.ts'), 'Cmd-click on an import block opens the imported file');
+	await openFile('cart.ts');
+	await page.waitForSelector(`${canvas} .cc-block[data-id="Cart/total"]`, { timeout: 15000 });
+
 	// jump to a block in another file
 	await selectBlock('Cart/total');
 	await page.locator(`${canvas} .cc-selbar .cc-refs-toggle`).click();
