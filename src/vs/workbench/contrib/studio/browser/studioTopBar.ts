@@ -27,8 +27,7 @@ import { IEditorGroup, IEditorGroupsService } from '../../../services/editor/com
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { IWorkbenchLayoutService, Parts } from '../../../services/layout/browser/layoutService.js';
 import { IWorkbenchThemeService } from '../../../services/themes/common/workbenchThemeService.js';
-import { CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID } from '../../codeCanvas/common/codeCanvas.js';
-import { CodeCanvasEditor, onDidChangeCodeCanvasViewMode } from '../../codeCanvas/browser/codeCanvasEditor.js';
+import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS } from '../../codeCanvas/common/codeCanvas.js';
 import { TEXT_FILE_EDITOR_ID } from '../../files/common/files.js';
 import { ISCMViewService } from '../../scm/common/scm.js';
 import { HoverPosition } from '../../../../base/browser/ui/hover/hoverWidget.js';
@@ -42,7 +41,7 @@ const JAVASCRIPT_EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs']);
 /** The canvas's own buttons for switching views; the top bar's Canvas / Code switch replaces them. */
 const VIEW_SWITCHING_ACTION_IDS = new Set(['codeCanvas.openAsCanvas', 'codeCanvas.openAsText']);
 
-type StudioViewMode = 'canvas' | 'code' | 'split';
+type StudioViewMode = 'canvas' | 'code';
 
 /**
  * Studio's top bar, in place of VS Code's title bar: the project, branch and "Go to anything" on the
@@ -115,7 +114,7 @@ export class StudioTopBar extends Disposable {
 		this.viewModeGroup = append(rightGroup, $('.studio-segmented'));
 		this.viewModeGroup.setAttribute('role', 'group');
 		this.viewModeGroup.setAttribute('aria-label', localize('studio.viewMode', "View"));
-		for (const [mode, label, commandId] of [['canvas', localize('studio.canvasView', "Canvas"), 'codeCanvas.openAsCanvas'], ['code', localize('studio.codeView', "Code"), 'codeCanvas.openAsText'], ['split', localize('studio.splitView', "Split"), CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID]] as const) {
+		for (const [mode, label, commandId] of [['canvas', localize('studio.canvasView', "Canvas"), 'codeCanvas.openAsCanvas'], ['code', localize('studio.codeView', "Code"), 'codeCanvas.openAsText']] as const) {
 			const button = this.createButton(this.viewModeGroup, 'studio-segment', label, () => this.commandService.executeCommand(commandId));
 			button.textContent = label;
 			this.viewModeButtons.set(mode, button);
@@ -148,7 +147,6 @@ export class StudioTopBar extends Disposable {
 		this.listenToActiveGroup();
 		this._register(this.editorGroupsService.mainPart.onDidChangeActiveGroup(() => this.listenToActiveGroup()));
 		this._register(this.editorService.onDidActiveEditorChange(() => this.renderViewMode()));
-		this._register(onDidChangeCodeCanvasViewMode(() => this.renderViewMode()));
 		this._register(new ResizeObserverDisposable(container, () => this.fitOpenFiles()));
 	}
 
@@ -303,11 +301,11 @@ export class StudioTopBar extends Disposable {
 		}
 	}
 
-	/** Canvas, Code or Split for a TypeScript or JavaScript file, nothing for any other editor. */
+	/** Canvas or Code for a TypeScript or JavaScript file, nothing for any other editor. */
 	private activeViewMode(): StudioViewMode | undefined {
 		const activePane = this.editorService.activeEditorPane;
-		if (activePane instanceof CodeCanvasEditor) {
-			return activePane.getViewMode();
+		if (activePane?.getId() === CODE_CANVAS_EDITOR_ID) {
+			return 'canvas';
 		}
 		const resource = EditorResourceAccessor.getOriginalUri(this.editorService.activeEditor);
 		const isCanvasFileInTextEditor = activePane?.getId() === TEXT_FILE_EDITOR_ID && !!resource && CODE_CANVAS_FILE_EXTENSIONS.includes(extname(resource).toLowerCase());

@@ -115,6 +115,7 @@ export class CodeCanvasBlockLane extends Disposable implements IOverlayWidget {
 	private watchModel() {
 		this.modelDisposables.clear();
 		this.blocks = [];
+		this.selectedBlockId = null;
 		const model = this.editor.getModel();
 		if (!model) {
 			this.render();

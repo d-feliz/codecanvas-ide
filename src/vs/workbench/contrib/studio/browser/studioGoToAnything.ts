@@ -25,7 +25,6 @@ import { QueryBuilder } from '../../../services/search/common/queryBuilder.js';
 import { ISearchService } from '../../../services/search/common/search.js';
 import { IWorkbenchThemeService } from '../../../services/themes/common/workbenchThemeService.js';
 import { CodeCanvasEditor } from '../../codeCanvas/browser/codeCanvasEditor.js';
-import { CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID } from '../../codeCanvas/common/codeCanvas.js';
 
 export const STUDIO_GO_TO_ANYTHING_COMMAND_ID = 'studio.goToAnything';
 export const STUDIO_TOGGLE_THEME_COMMAND_ID = 'studio.toggleTheme';
@@ -172,12 +171,9 @@ class GoToAnythingPicker {
 
 	private actionItems(): GoToAnythingItem[] {
 		const action = (label: string, commandId: string): GoToAnythingItem => ({ label, run: () => this.commandService.executeCommand(commandId) });
-		const activePane = this.editorService.activeEditorPane;
-		const canvasIsActive = activePane instanceof CodeCanvasEditor;
-		const canvasIsAlone = canvasIsActive && activePane.getViewMode() === 'canvas';
+		const canvasIsActive = this.editorService.activeEditorPane instanceof CodeCanvasEditor;
 		return [
 			...(canvasIsActive ? [action(localize('studio.addFunction', "Add function"), 'codeCanvas.addFunction')] : []),
-			...(canvasIsAlone ? [action(localize('studio.openInSplitView', "Open in split view"), CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID)] : []),
 			...(canvasIsActive ? [action(localize('studio.showChanges', "Show or hide changes"), 'codeCanvas.toggleChanges')] : []),
 			action(localize('studio.switchTheme', "Switch between the light and dark theme"), STUDIO_TOGGLE_THEME_COMMAND_ID),
 			action(localize('studio.toggleAssistantAction', "Show or hide the Assistant"), 'workbench.action.toggleAuxiliaryBar'),

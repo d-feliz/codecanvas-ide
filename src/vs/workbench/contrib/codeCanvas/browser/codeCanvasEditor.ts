@@ -6,7 +6,6 @@
 import './media/codeCanvasEditor.css';
 import { $, addDisposableListener, append, Dimension, EventType } from '../../../../base/browser/dom.js';
 import { RunOnceScheduler } from '../../../../base/common/async.js';
-import { Emitter } from '../../../../base/common/event.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { KeyCode } from '../../../../base/common/keyCodes.js';
 import { DisposableStore, toDisposable } from '../../../../base/common/lifecycle.js';
@@ -24,9 +23,6 @@ import { Position } from '../../../../editor/common/core/position.js';
 import { Range } from '../../../../editor/common/core/range.js';
 import { Selection } from '../../../../editor/common/core/selection.js';
 import { ITextModel, TrackedRangeStickiness } from '../../../../editor/common/model.js';
-import { IEditorOptions as ICodeEditorOptions } from '../../../../editor/common/config/editorOptions.js';
-import { ScrollType } from '../../../../editor/common/editorCommon.js';
-import { ITextResourceConfigurationService } from '../../../../editor/common/services/textResourceConfiguration.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { localize } from '../../../../nls.js';
@@ -46,37 +42,17 @@ import { IThemeService } from '../../../../platform/theme/common/themeService.js
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 import { EditorPane } from '../../../browser/parts/editor/editorPane.js';
 import { getStudioEditorFreeArea, onDidChangeStudioEditorFreeArea } from '../../../browser/studio/studioShell.js';
-import { IEditorControl, IEditorOpenContext } from '../../../common/editor.js';
+import { DEFAULT_EDITOR_ASSOCIATION, IEditorOpenContext } from '../../../common/editor.js';
 import { IEditorGroup } from '../../../services/editor/common/editorGroupsService.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_LAYOUT_FOLDER, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
 import { CodeCanvas, EditorHandle, EditorOptions, Engine, FileLayout, HostDiagnostic, loadEngine, OtherFileChange } from './codeCanvasEngine.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
-import { CodeCanvasBlockLane } from './codeCanvasBlockLane.js';
+import { selectBlockWhenCodeViewShows } from './codeCanvasCodeViewLanes.js';
 import { ICodeCanvasProjectService } from './codeCanvasProjects.js';
 
 /** Blocks to select once a canvas opens, when the user jumped to a block in another file. */
 const blockToRevealByResource = new Map<string, string>();
-
-/** `split`: the canvas on the left, the file's code on the right. Each file remembers its own. */
-export type CodeCanvasViewMode = 'canvas' | 'split';
-const viewModeChangeEmitter = new Emitter<void>();
-/** A canvas editor switched between the canvas alone and Split. */
-export const onDidChangeCodeCanvasViewMode = viewModeChangeEmitter.event;
-
-export function codeCanvasViewModeStorageKey(resource: URI): string {
-	return `codeCanvas.viewMode:${resource.toString()}`;
-}
-
-const SPLIT_GAP = 12;
-const SMALLEST_SPLIT_MARGIN = 8;
-
-interface CodePanel {
-	editor: CodeEditorWidget;
-	lane: CodeCanvasBlockLane;
-	element: HTMLElement;
-	selectedBlockLabel: HTMLElement;
-}
 
 /**
  * Shows a TypeScript or JavaScript file as the CodeCanvas diagram. Text stays the source of truth: the canvas
@@ -102,15 +78,9 @@ export class CodeCanvasEditor extends EditorPane {
 	/** Kept across files: once on, every file this pane shows is compared with its last commit. */
 	private showsChanges = false;
 	private readonly showsChangesContext: IContextKey<boolean>;
-	private shownFile: { canvas: CodeCanvas; model: ITextModel; layoutResource: URI; path: string } | undefined;
+	private shownFile: { canvas: CodeCanvas; model: ITextModel; layoutResource: URI } | undefined;
 	private readonly committedVersionDisposables = this._register(new DisposableStore());
 	private engine: Engine | undefined;
-	private viewMode: CodeCanvasViewMode = 'canvas';
-	private codePanel: CodePanel | undefined;
-	private readonly codePanelDisposables = this._register(new DisposableStore());
-	private selectedBlockId: string | null = null;
-	private isSelectingFromCode = false;
-	private dimension: Dimension | undefined;
 
 	constructor(
 		group: IEditorGroup,
@@ -131,7 +101,6 @@ export class CodeCanvasEditor extends EditorPane {
 		@IModelService private readonly modelService: IModelService,
 		@ILanguageService private readonly languageService: ILanguageService,
 		@INotificationService private readonly notificationService: INotificationService,
-		@ITextResourceConfigurationService private readonly textResourceConfigurationService: ITextResourceConfigurationService,
 		@ICommandService private readonly commandService: ICommandService,
 	) {
 		super(CodeCanvasEditor.ID, group, telemetryService, themeService, storageService);
@@ -274,8 +243,7 @@ export class CodeCanvasEditor extends EditorPane {
 			},
 			onUndo: () => void model.undo(),
 			onRedo: () => void model.redo(),
-			onSelect: block => this.showSelectionInCode(block?.id ?? null),
-			onOpenCode: block => this.openCodeAt(block.id),
+			onOpenCode: block => this.openCodeAt(model, block),
 			onAsk: block => this.askAbout(model, block),
 			onOpenBlock: (otherPath, blockId) => {
 				const resource = joinPath(folder, otherPath);
@@ -291,18 +259,12 @@ export class CodeCanvasEditor extends EditorPane {
 			}
 		}));
 
-		this.shownFile = { canvas, model, layoutResource, path };
-		this.inputDisposables.add(toDisposable(() => {
-			this.shownFile = undefined;
-			this.selectedBlockId = null;
-			this.closeCodePanel();
-		}));
-		this.viewMode = this.storageService.get(codeCanvasViewModeStorageKey(input.resource), StorageScope.WORKSPACE) === 'split' ? 'split' : 'canvas';
-		this.renderViewMode();
-		viewModeChangeEmitter.fire();
-		// In Studio the canvas lies under the floating panels; it keeps the file and Fit clear of them (and of the code in Split).
-		this.inputDisposables.add(onDidChangeStudioEditorFreeArea(() => this.placeCodePanelAndCanvas()));
+		// In Studio the canvas lies under the floating panels; it keeps the file and Fit clear of them.
+		canvas.setViewInsets(getStudioEditorFreeArea());
+		this.inputDisposables.add(onDidChangeStudioEditorFreeArea(freeArea => canvas.setViewInsets(freeArea)));
 		canvas.openFile(path, model.getValue(), savedLayout.layout);
+		this.shownFile = { canvas, model, layoutResource };
+		this.inputDisposables.add(toDisposable(() => this.shownFile = undefined));
 		void this.showChangesIfOn();
 		// Errors come from VS Code's Problems (the TypeScript extension), not from the engine.
 		const showProblems = () => canvas.setDiagnostics(this.problemsOf(model));
@@ -353,45 +315,20 @@ export class CodeCanvasEditor extends EditorPane {
 		this.canvas?.addFunction();
 	}
 
-	getViewMode(): CodeCanvasViewMode {
-		return this.viewMode;
-	}
-
-	setViewMode(viewMode: CodeCanvasViewMode): void {
-		if (viewMode === this.viewMode) {
+	/** "Open code" on a block: the Code view in place of the canvas, the cursor at the block and its lines tinted. */
+	private openCodeAt(model: ITextModel, block: { id: string; start: number; nameStart: number }) {
+		const input = this.input;
+		if (!input) {
 			return;
 		}
-		this.viewMode = viewMode;
-		const resource = this.shownFile?.model.uri;
-		if (resource) {
-			this.storageService.store(codeCanvasViewModeStorageKey(resource), viewMode, StorageScope.WORKSPACE, StorageTarget.MACHINE);
-		}
-		this.renderViewMode();
-		viewModeChangeEmitter.fire();
-		// The code panel now covers half of the canvas, or uncovers it: keep the selected block in view.
-		if (this.selectedBlockId) {
-			this.canvas?.reveal(this.selectedBlockId);
-		}
-	}
-
-	/** In Split, editor commands (Go to Line, Format, Find…) act on the code side. */
-	override getControl(): IEditorControl | undefined {
-		return this.codePanel?.editor;
-	}
-
-	/** "Open code" on a block: Split, with the code at the block. */
-	private openCodeAt(blockId: string) {
-		this.setViewMode('split');
-		const block = this.shownFile?.canvas.getModel()?.blocks.get(blockId);
-		const codePanel = this.codePanel;
-		if (!block || !codePanel || !this.shownFile) {
-			return;
-		}
-		const model = this.shownFile.model;
 		const declaration = model.getPositionAt(block.nameStart >= 0 ? block.nameStart : block.start);
-		this.showSelectionInCode(blockId);
-		codePanel.editor.setPosition(declaration);
-		codePanel.editor.focus();
+		selectBlockWhenCodeViewShows(model.uri, block.id);
+		// The canvas edits the file's text model, so its unsaved changes survive the switch.
+		void this.editorService.replaceEditors([{
+			editor: input,
+			replacement: { resource: model.uri, options: { override: DEFAULT_EDITOR_ASSOCIATION.id, selection: Range.fromPositions(declaration), pinned: true } },
+			forceReplaceDirty: true,
+		}], this.group);
 	}
 
 	/** "Ask" on a block: the Assistant, with the block's code attached. */
@@ -402,138 +339,6 @@ export class CodeCanvasEditor extends EditorPane {
 			isPartialQuery: true,
 			attachFiles: [{ uri: model.uri, range }],
 		});
-	}
-
-	private renderViewMode() {
-		const shownFile = this.shownFile;
-		const showsCode = this.viewMode === 'split' && !!shownFile;
-		if (showsCode && !this.codePanel) {
-			this.codePanel = this.createCodePanel(shownFile.model, shownFile.path);
-		}
-		if (!showsCode) {
-			this.closeCodePanel();
-		}
-		this.container?.classList.toggle('code-canvas-split', showsCode);
-		this.placeCodePanelAndCanvas();
-	}
-
-	private closeCodePanel() {
-		this.codePanelDisposables.clear();
-		this.codePanel = undefined;
-	}
-
-	private createCodePanel(model: ITextModel, path: string): CodePanel {
-		const disposables = this.codePanelDisposables;
-		const element = append(this.container!, $('.code-canvas-code-panel'));
-		disposables.add(toDisposable(() => element.remove()));
-
-		const header = append(element, $('.code-canvas-code-panel-header'));
-		const folderEnd = path.lastIndexOf('/');
-		if (folderEnd > 0) {
-			append(header, $('span.code-canvas-code-panel-folder')).textContent = `${path.slice(0, folderEnd)} /`;
-		}
-		append(header, $('span.code-canvas-code-panel-file')).textContent = path.slice(folderEnd + 1);
-		const selectedBlockLabel = append(header, $('span.code-canvas-code-panel-block'));
-		append(header, $('span.code-canvas-code-panel-spacer'));
-		const closeButton = append(header, $<HTMLButtonElement>('button.code-canvas-code-panel-close'));
-		// allow-any-unicode-next-line
-		closeButton.textContent = '×';
-		closeButton.setAttribute('aria-label', localize('codeCanvas.closeCode', "Close Code Panel"));
-		closeButton.title = localize('codeCanvas.closeCode', "Close Code Panel");
-		disposables.add(addDisposableListener(closeButton, EventType.CLICK, () => this.setViewMode('canvas')));
-
-		const editorElement = append(element, $('.code-canvas-code-panel-editor'));
-		const editor = disposables.add(this.instantiationService.createInstance(CodeEditorWidget, editorElement, this.codePanelEditorOptions(model), { contributions: EditorExtensionsRegistry.getEditorContributions() }));
-		editor.setModel(model);
-		disposables.add(this.textResourceConfigurationService.onDidChangeConfiguration(e => {
-			if (e.affectsConfiguration(model.uri, 'editor')) {
-				editor.updateOptions(this.codePanelEditorOptions(model));
-			}
-		}));
-		const lane = disposables.add(new CodeCanvasBlockLane(editor, 'glyphs'));
-		lane.setSelectedBlock(this.selectedBlockId);
-		disposables.add(lane.onDidPickBlock(blockId => this.selectBlockFromCode(blockId)));
-		disposables.add(editor.onDidChangeCursorPosition(e => {
-			const movedByUser = e.source === 'mouse' || e.source === 'keyboard';
-			const block = movedByUser ? lane.blockAtLine(e.position.lineNumber) : null;
-			if (block && block.id !== this.selectedBlockId) {
-				this.selectBlockFromCode(block.id);
-			}
-		}));
-
-		const codePanel: CodePanel = { editor, lane, element, selectedBlockLabel };
-		this.renderSelectedBlockLabel(codePanel);
-		return codePanel;
-	}
-
-	private codePanelEditorOptions(model: ITextModel): ICodeEditorOptions {
-		return {
-			...this.textResourceConfigurationService.getValue<ICodeEditorOptions>(model.uri, 'editor'),
-			automaticLayout: true,
-			minimap: { enabled: false },
-			fixedOverflowWidgets: true,
-		};
-	}
-
-	private selectBlockFromCode(blockId: string) {
-		this.isSelectingFromCode = true;
-		try {
-			this.canvas?.reveal(blockId);
-		} finally {
-			this.isSelectingFromCode = false;
-		}
-	}
-
-	/** The canvas's selection, shown in the code: its lines tinted and, unless it came from the code, scrolled to. */
-	private showSelectionInCode(blockId: string | null) {
-		this.selectedBlockId = blockId;
-		const codePanel = this.codePanel;
-		const shownFile = this.shownFile;
-		if (!codePanel || !shownFile) {
-			return;
-		}
-		codePanel.lane.setSelectedBlock(blockId);
-		this.renderSelectedBlockLabel(codePanel);
-		const block = blockId ? shownFile.canvas.getModel()?.blocks.get(blockId) : undefined;
-		if (block && !this.isSelectingFromCode) {
-			const blockRange = Range.fromPositions(shownFile.model.getPositionAt(block.start), shownFile.model.getPositionAt(block.end));
-			codePanel.editor.revealRangeNearTopIfOutsideViewport(blockRange, ScrollType.Smooth);
-		}
-	}
-
-	private renderSelectedBlockLabel(codePanel: CodePanel) {
-		const block = this.selectedBlockId ? this.shownFile?.canvas.getModel()?.blocks.get(this.selectedBlockId) : undefined;
-		codePanel.selectedBlockLabel.style.display = block ? '' : 'none';
-		if (block && this.engine) {
-			codePanel.selectedBlockLabel.textContent = `${this.engine.glyphOf(block)} ${block.name}`;
-			codePanel.selectedBlockLabel.style.setProperty('--code-canvas-kind', `var(--vscode-studio-kind${block.kind[0].toUpperCase()}${block.kind.slice(1)})`);
-		}
-	}
-
-	/** In Split the code takes the right half of the free area and the canvas keeps to the left half. */
-	private placeCodePanelAndCanvas() {
-		const canvas = this.shownFile?.canvas;
-		if (!canvas || !this.container) {
-			return;
-		}
-		const freeArea = getStudioEditorFreeArea();
-		const codePanel = this.codePanel;
-		if (!codePanel) {
-			this.container.style.removeProperty('--code-canvas-split-right');
-			canvas.setViewInsets(freeArea);
-			return;
-		}
-		// Before the pane's first layout, the container still has the size the group gave it.
-		const width = this.dimension?.width ?? this.container.clientWidth;
-		const left = Math.max(freeArea.left, SMALLEST_SPLIT_MARGIN);
-		const right = Math.max(freeArea.right, SMALLEST_SPLIT_MARGIN);
-		const top = Math.max(freeArea.top, SMALLEST_SPLIT_MARGIN);
-		const bottom = Math.max(freeArea.bottom, SMALLEST_SPLIT_MARGIN);
-		const codePanelLeft = Math.round(left + (width - left - right) / 2 + SPLIT_GAP / 2);
-		Object.assign(codePanel.element.style, { left: `${codePanelLeft}px`, right: `${right}px`, top: `${top}px`, bottom: `${bottom}px` });
-		const canvasRight = width - codePanelLeft + SPLIT_GAP / 2;
-		this.container.style.setProperty('--code-canvas-split-right', `${canvasRight}px`);
-		canvas.setViewInsets({ ...freeArea, right: canvasRight });
 	}
 
 	/** Opened at a place in the text (Go to Definition, a search result, a problem): select the block there. */
@@ -724,8 +529,6 @@ export class CodeCanvasEditor extends EditorPane {
 	}
 
 	override layout(dimension: Dimension): void {
-		this.dimension = dimension;
-		this.placeCodePanelAndCanvas();
 		if (this.container) {
 			this.container.style.width = `${dimension.width}px`;
 			this.container.style.height = `${dimension.height}px`;

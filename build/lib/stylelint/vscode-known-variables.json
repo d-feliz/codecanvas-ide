@@ -1434,7 +1434,6 @@
 		"--chat-model-picker-welcome-icon-light",
 		"--chat-model-picker-welcome-icon-dark",
 		"--studio-font-mono",
-		"--code-canvas-split-right",
 		"--code-canvas-kind",
 		"--studio-font-ui"
 	],

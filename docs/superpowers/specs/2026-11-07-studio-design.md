@@ -3,10 +3,12 @@
 Date: 2026-11-07. Status: in progress (steps 1–6 done).
 
 Studio is CodeCanvas's own look, instead of VS Code's: floating surfaces over an infinite dotted
-canvas, one accent color (gold), node-style blocks, and Canvas / Code / Split views of a file. The
+canvas, one accent color (gold), node-style blocks, and Canvas / Code views of a file. The
 design canvas is the source of truth for how it looks:
 [CodeCanvas-IDE Redesign](https://claude.ai/artifact/Fh7UqJPrSahqH42kRtefCR) (boards: Canvas view,
-Code view, Split view, Light theme, Command palette, Tokens and components).
+Code view, Split view, Light theme, Command palette, Tokens and components). The Split view board is
+no longer built: the owner dropped Split after step 6, as the window has too little room for the
+canvas and the code side by side.
 
 Decisions made with the owner:
 
@@ -48,7 +50,7 @@ Decisions made with the owner:
 | Branch button | Active repository's branch; opens Checkout to… |
 | "Go to anything ⌘K" | The Studio palette |
 | Open files (top center) | Back / Forward; the active group's editors as pills with a dot colored by language; × on the active one, ● when unsaved; scrolls, "+N" menu when full |
-| Canvas / Code / Split (top right) | The active canvas editor's view; shown for TS/JS files |
+| Canvas / Code (top right) | The active canvas editor's view; shown for TS/JS files |
 | Theme switch | Studio Dark ↔ Studio Light |
 | Assistant toggle | Secondary side bar |
 | Sign in / avatar | VS Code accounts |
@@ -61,7 +63,7 @@ Decisions made with the owner:
 | Command palette | VS Code's quick input in Studio style with group headers |
 
 "Go to anything" (⌘K) shows three groups: nodes in this file (the canvas's blocks), files, and
-actions (add function, open selection in split view, switch theme). `>` lists all commands, as
+actions (add function, switch theme). `>` lists all commands, as
 today. In Studio, default keybindings whose first chord is ⌘K get ⌘' as their first chord instead
 (⌘K ⌘S → ⌘' ⌘S). ⌘; was the first choice, but VS Code's Testing commands use it as a first chord (15
 of the second chords collide); ⌘' is free in VS Code and its built-in extensions. The user's own
@@ -94,7 +96,7 @@ spacing but keep their own structure (tree icons, extra controls, Copilot's chat
 - Links: curves with a dot at the end. Faint (55%) normally; with a selection, the selected block's
   links are accent and 2px, others 18%. Links to imports are dashed.
 - Selected-block toolbar, above the block (below it when there is no room): "N deps · used by M",
-  Open code (Split at the block), Ask (Assistant about the block), Rename, Delete, ×. Edit, Refs,
+  Open code (the Code view at the block), Ask (Assistant about the block), Rename, Delete, ×. Edit, Refs,
   Copy, Duplicate and + Inside move to a "⋯" menu and the context menu.
 - Dock (bottom center): Select and Pan tools, + Function, Arrange, Fit, − / zoom % / +, the language
   label.
@@ -105,7 +107,6 @@ spacing but keep their own structure (tree icons, extra controls, Copilot's chat
   - Code: Monaco on the file, with a lane left of the line numbers: at each block's first line a chip
     (glyph and name), and a bar in the kind color along its lines. A click on a chip selects the block;
     the selected block's lines get an accent tint.
-  - Split: canvas left, Code right; the selection follows on both sides.
   The block editor (double-click a block) stays.
 
 ## 4. Theme, tests, order
@@ -124,11 +125,11 @@ Tests:
 
 - Engine unit tests: glyph and color per kind; the frame's node and link counts; the Code view's
   block ranges and chips; dimming of unlinked blocks.
-- Playground browser checks: Studio blocks, dock, minimap, Split selection following both ways.
+- Playground browser checks: Studio blocks, dock, minimap.
 - Desktop end-to-end checks: the Studio layout is there; each left-panel icon opens its view; ⌃`
   opens the drawer; ⌘K opens the palette with this file's nodes; ⌘; ⌘S opens keyboard shortcuts;
   the Assistant toggles; `"classic"` brings back the classic layout. The existing checks keep passing.
-- Side by side: the desktop check takes 1440×900 screenshots of Canvas, Code, Split, Light and the
+- Side by side: the desktop check takes 1440×900 screenshots of Canvas, Code, Light and the
   palette; a comparison page puts each next to its design board.
 
 Order (each step tested and pushed; Studio is the default since step 4):
@@ -138,10 +139,10 @@ Order (each step tested and pushed; Studio is the default since step 4):
 3. `StudioShell`: floating panels, canvas under the panels, status pills, drawer. (Until the engine
    can be told the free area, step 6, Fit and centering still use the whole canvas.)
 4. Studio chrome: top groups, open-files bar, left panel icon row and footer, Assistant header.
-   (Split joins Canvas / Code in step 6; the editor's own actions sit in the top bar for now.)
+   (The editor's own actions sit in the top bar for now.)
 5. The palette, ⌘K, and the ⌘K chords moved to ⌘'. (The actions group has the theme, Assistant,
-   terminal and Show Changes; "Add function" and "Open in split view" join with step 6.)
-6. Code and Split views with the block lane (engine 0.6.0: `blockLines`, `glyphOf`, `addFunction`).
-   Split lives inside the canvas editor (a code panel over the right half of the free area), so the
-   shell still sees one window-filling editor. Code stays VS Code's text editor, with the lane.
+   terminal and Show Changes; "Add function" joins with step 6.)
+6. The Code view's block lane, Open code and Ask (engine 0.6.0: `blockLines`, `glyphOf`,
+   `addFunction`). Code stays VS Code's text editor, with the lane. Split (a code panel inside the
+   canvas editor) was built here, then removed for lack of room.
 7. Polish against the boards (light theme included), Studio becomes the default, docs.

@@ -137,47 +137,28 @@ const assert = (condition, message) => {
 		await page.waitForTimeout(300);
 		assert(await page.locator('.part.editor .monaco-editor .code-canvas-selected-block-line').count() > 0, 'a click on a chip tints the block\'s lines');
 
-		await page.locator('.studio-top-bar .studio-segment:text-is("Split")').click();
-		await page.waitForSelector('.code-canvas-editor .code-canvas-code-panel .monaco-editor', { timeout: 15000 });
-		await page.waitForTimeout(1000);
-		const codePanel = await box('.code-canvas-editor .code-canvas-code-panel');
-		const splitDock = await box('.code-canvas-editor .cc-dock');
-		assert((await topBarText('.studio-segment.studio-active')) === 'Split' && splitDock.x + splitDock.width < codePanel.x, 'Split shows the canvas with the code beside it, the dock on the canvas side');
-		await page.locator('.code-canvas-code-panel .monaco-editor .view-lines').click();
-		await page.keyboard.press('Meta+ArrowUp');
-		await page.waitForTimeout(800);
-		const firstBlockId = await page.locator('.code-canvas-code-panel .code-canvas-lane-chip').first().getAttribute('data-block-id');
-		assert(await page.locator(`.code-canvas-editor .cc-block[data-id="${firstBlockId}"]`).evaluate(e => e.classList.contains('cc-sel')), 'moving the cursor into a block in the code selects it on the canvas');
-		const useCouponChip = page.locator('.code-canvas-code-panel .code-canvas-lane-chip[data-block-id="Cart/useCoupon"]');
-		await useCouponChip.waitFor({ timeout: 10000 }).catch(() => { });
-		await useCouponChip.click();
-		await page.waitForTimeout(800);
-		assert(await page.locator('.code-canvas-editor .cc-block[data-id="Cart/useCoupon"]').evaluate(e => e.classList.contains('cc-sel')), 'picking a block in the code selects it on the canvas');
-		await page.keyboard.press('Meta+k');
-		await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
-		await page.keyboard.type('subtotal');
-		await page.waitForTimeout(500);
-		await page.keyboard.press('Enter');
-		await page.waitForTimeout(800);
-		const selectedBlockLabel = () => page.locator('.code-canvas-code-panel .code-canvas-code-panel-block').innerText();
-		assert((await selectedBlockLabel()).includes('subtotal') && await page.locator('.code-canvas-code-panel .code-canvas-selected-block-line').count() > 0, 'and a block selected on the canvas is tinted in the code');
-		await page.screenshot({ path: path.join(screenshots, 'studio-layout-split.png') });
-		await page.locator('.code-canvas-code-panel button[aria-label="Close Code Panel"]').click();
-		await page.waitForTimeout(500);
-		assert(!await isShown('.code-canvas-code-panel') && (await topBarText('.studio-segment.studio-active')) === 'Canvas', 'the code panel\'s × goes back to the canvas');
-
+		await page.locator('.studio-top-bar .studio-segment:text-is("Canvas")').click();
+		await page.waitForSelector('.code-canvas-editor .cc-block', { timeout: 10000 });
+		const selectSubtotalOnCanvas = async () => {
+			await page.keyboard.press('Meta+k');
+			await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
+			await page.keyboard.type('subtotal');
+			await page.waitForTimeout(500);
+			await page.keyboard.press('Enter');
+			await page.waitForTimeout(800);
+		};
+		await selectSubtotalOnCanvas();
 		await page.locator('.code-canvas-editor .cc-selbar button:text-is("Open code")').click();
-		await page.waitForSelector('.code-canvas-code-panel .monaco-editor.focused', { timeout: 10000 }).catch(() => { });
-		assert(await isShown('.code-canvas-code-panel .monaco-editor.focused') && (await selectedBlockLabel()).includes('subtotal'), 'Open code on a block opens Split at the block, with the cursor in the code');
-		await page.locator('.code-canvas-code-panel button[aria-label="Close Code Panel"]').click();
-		await page.waitForTimeout(500);
+		const subtotalChip = page.locator('.part.editor .code-canvas-lane-chip.code-canvas-lane-selected[data-block-id="Cart/subtotal"]');
+		await subtotalChip.waitFor({ timeout: 15000 }).catch(() => { });
+		const subtotalChipBox = await subtotalChip.boundingBox();
+		const cursorLine = await page.locator('.part.editor .monaco-editor .view-overlays .current-line').first().boundingBox();
+		const cursorIsOnSubtotal = !!subtotalChipBox && !!cursorLine && Math.abs(subtotalChipBox.y + subtotalChipBox.height / 2 - (cursorLine.y + cursorLine.height / 2)) < cursorLine.height / 2;
+		assert((await topBarText('.studio-segment.studio-active')) === 'Code' && cursorIsOnSubtotal, 'Open code on a block opens the Code view with the cursor at the block, its lines tinted');
+		await page.screenshot({ path: path.join(screenshots, 'studio-layout-code.png') });
+		await page.locator('.studio-top-bar .studio-segment:text-is("Canvas")').click();
+		await page.waitForSelector('.code-canvas-editor .cc-block', { timeout: 10000 });
 
-		await page.keyboard.press('Meta+k');
-		await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
-		await page.keyboard.type('split view');
-		await page.waitForTimeout(500);
-		assert(await page.locator('.quick-input-widget .monaco-list-row:has-text("Open in split view")').count() === 1, 'Go to anything has Open in split view');
-		await page.keyboard.press('Escape');
 		await page.keyboard.press('Meta+k');
 		await page.waitForSelector('.quick-input-widget .quick-input-list-separator', { timeout: 5000 });
 		await page.keyboard.type('add function');
@@ -185,6 +166,7 @@ const assert = (condition, message) => {
 		assert(await page.locator('.quick-input-widget .monaco-list-row:has-text("Add function")').count() === 1, 'and Add function');
 		await page.keyboard.press('Escape');
 
+		await selectSubtotalOnCanvas();
 		await page.locator('.code-canvas-editor .cc-selbar button:text-is("Ask")').click();
 		await page.waitForSelector('.studio-shell > .part.auxiliarybar .interactive-input-part', { state: 'visible', timeout: 10000 }).catch(() => { });
 		const chatInput = await page.locator('.studio-shell > .part.auxiliarybar .interactive-input-part .view-lines').first().innerText().catch(() => '');

@@ -14,8 +14,6 @@ export const CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT = 'codeCanvas.openTyp
 
 /** The canvas shows the changes since the file's last commit. */
 export const CODE_CANVAS_SHOWS_CHANGES = new RawContextKey<boolean>('codeCanvasShowsChanges', false);
-/** The canvas with the file's code beside it. */
-export const CODE_CANVAS_OPEN_AS_SPLIT_COMMAND_ID = 'codeCanvas.openAsSplit';
 export const CODE_CANVAS_INPUT_ID = 'workbench.input.codeCanvas';
 
 /** Files the canvas can show: TypeScript and JavaScript, as the engine parses them. */

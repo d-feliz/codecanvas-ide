@@ -35,13 +35,11 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   A file with merge conflicts shows its current side, with the conflicted blocks marked; the block
   editor on such a block shows VS Code's own conflict actions (Accept Current / Incoming / Both,
   Resolve in Merge Editor) next to the canvas's Keep current / incoming / both.
-  Split ("Open in Split View", or Split in Studio's top bar) shows the file's code beside the canvas,
-  in a full Monaco editor on the same document; the selection follows both ways, and editor commands
-  (Go to Line, Format, Find) act on that code. A selected block's "Open code" opens Split at the
-  block, and "Ask" opens the Assistant with the block's lines attached. Each file remembers Canvas or
-  Split. In Studio, the text editor on a TypeScript or JavaScript file (the Code view) has a block
-  lane left of the line numbers (`codeCanvasBlockLane.ts`): a chip per block (glyph and name; only the
-  glyph in Split or a narrow editor) and a bar in its kind color. Monaco has no column there, so the
+  A selected block's "Open code" reopens the file in the text editor with the cursor at the block and
+  its lines tinted, and "Ask" opens the Assistant with the block's lines attached. In Studio, the text
+  editor on a TypeScript or JavaScript file (the Code view) has a block lane left of the line numbers
+  (`codeCanvasBlockLane.ts`): a chip per block (glyph and name; only the glyph in a narrow editor) and
+  a bar in its kind color. Monaco has no column there, so the
   lane widens the line numbers' column and draws over its empty left part.
 - `build/next/index.ts`: bundles that worker in production builds, and bundles `.woff2` fonts (Studio's).
 - Studio, CodeCanvas's own look (in progress; design in
@@ -52,7 +50,7 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   With `"workbench.layoutStyle": "studio"` (the default; `"classic"` brings back VS Code's), `StudioShell` replaces the
   workbench grid: the parts float as surfaces, a canvas lies under them, and the panel is a drawer.
   `src/vs/workbench/contrib/studio/` fills the shell's top bar (project, branch, Go to anything, open
-  files, editor actions, Canvas / Code / Split, theme, Assistant, account), the left panel's footer and the
+  files, editor actions, Canvas / Code, theme, Assistant, account), the left panel's footer and the
   Assistant's header. In Studio, the view icons go on top of the left panel and editor tabs and
   breadcrumbs are off by default (`studioSettingDefaults.ts`).
 - `services/keybinding/browser/keybindingService.ts`: in Studio, default ⌘K chords start with ⌘'
