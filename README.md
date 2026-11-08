@@ -11,6 +11,24 @@ the text stays the source of truth.
 
 Everything else (the explorer, search, source control, the terminal, extensions) works as in VS Code.
 
+## Why CodeCanvas
+
+I remember places much better than facts. IDEs already give me some of that: folders, the order of
+functions in a file, which file calls which. CodeCanvas adds one more dimension. A file becomes a
+room you arrange. Blocks of code aren't only above or below each other; they are also left and
+right of each other, and the connections between them are drawn.
+
+I want to change how we see code: not colored text on a screen, but machines connected to each
+other, each with its own place and its own job.
+
+Most code-visualization tools throw a huge diagram of everything at you. You don't remember it,
+because you didn't arrange it. You can't act on it. And when the code changes, you can't tell what
+moved. In CodeCanvas you place every block yourself, the layout is saved with the repo, you edit on
+the canvas, and Show Changes tells you what changed.
+
+And it is still an IDE. You write, run and debug code as usual. The canvas is a visual layer that
+organizes your code without getting in your way.
+
 ## What you can do
 
 - **Open a TypeScript or JavaScript file as a canvas.** That is the default; "Open as Text" in the
