@@ -40,17 +40,22 @@ organizes your code without getting in your way.
   out as a tree.
 - **Edit a block** by double-clicking it. A Monaco editor opens on the block's own lines of the
   file, so IntelliSense, hovers and error squiggles work as in a text editor. Undo, save and unsaved
-  changes are shared with the text editor.
+  changes are shared with the text editor. Enter twice after the block's last line (its `}`, or
+  `const fee = 2;`) closes the editor.
 - **See errors on blocks.** Errors from Problems put a red marker with a count on the block.
 - **Follow usages**, also across files. The references list shows the blocks that use a block and
   the blocks it uses; click one to open that file at the block.
 - **Rename with F2.** Every usage changes, in every file; one undo reverts all of it.
-- **Create, copy, paste, duplicate and delete blocks.** Double-click empty space to add a function.
+- **Create blocks by typing.** Start typing on the canvas, or double-click empty space: an empty
+  block opens, and what you type goes into the file and becomes a block there. Right-click empty
+  space to pick what to create (function, constant, class, interface, type, enum, component).
+- **Copy, paste, duplicate and delete blocks.**
 - **Keep your layout.** Blocks stay where you put them, whatever their order in the file. Once you
   arrange something, positions are saved in `.codecanvas/` in the workspace folder, to commit so
-  your team sees the same layout.
+  your team sees the same layout. Moving blocks is an undo step: ⌘Z moves them back, in order with
+  your text edits.
 - **Read a new file easily.** A file without a saved layout is arranged by readability rules:
-  imports on the left, constants and types at the top, a getter above its setter, and a function on
+  imports on the left, default exports on the right, constants and types at the top, a getter above its setter, and a function on
   the left of the functions it calls, in call order. "Arrange" applies the rules again.
 - **Review changes.** "Show Changes" compares the file with its last commit: unchanged blocks are
   desaturated, added and changed blocks get a chip, removed blocks show in red where they were.
