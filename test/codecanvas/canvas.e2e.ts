@@ -185,6 +185,16 @@ const assert = (condition, message) => {
 	await page.keyboard.press('Escape');
 	await page.keyboard.press('Delete');
 	await page.waitForTimeout(500);
+	const blocksText = () => page.locator(`${canvas} .cc-block .cc-prev`).allInnerTexts().then(texts => texts.join('\n'));
+	const blocksBeforeBackspace = await blocksText();
+	await page.mouse.dblclick(emptySpot!.x, emptySpot!.y);
+	await page.waitForSelector(`${blockEditor} .view-lines`, { timeout: 10000 });
+	for (let press = 0; press < 6; press++) {
+		await page.keyboard.press('Backspace');
+	}
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(500);
+	assert(await blocksText() === blocksBeforeBackspace, 'Backspace in an empty block doesn\'t reach the code of other blocks');
 
 	// undo goes through the document
 	await page.locator(`${canvas} .cc-root`).focus();

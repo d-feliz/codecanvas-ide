@@ -8,6 +8,7 @@ import { $, addDisposableListener, append, Dimension, EventType } from '../../..
 import { RunOnceScheduler } from '../../../../base/common/async.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { KeyCode } from '../../../../base/common/keyCodes.js';
+import { IKeyboardEvent } from '../../../../base/browser/keyboardEvent.js';
 import { DisposableStore, toDisposable } from '../../../../base/common/lifecycle.js';
 import { dirname, isEqual, joinPath } from '../../../../base/common/resources.js';
 import { URI } from '../../../../base/common/uri.js';
@@ -474,7 +475,24 @@ export class CodeCanvasEditor extends EditorPane {
 			const blockStart = model.getOffsetAt(blockRange.getStartPosition());
 			return this.engine.isFinishingBlock(model.getValueInRange(blockRange), model.getOffsetAt(cursor) - blockStart);
 		};
+		// The other lines are only hidden: Backspace at the block's start (or Delete at its end) would reach into them.
+		const deletesOutsideBlock = (e: IKeyboardEvent) => {
+			const blockRange = model.getDecorationRange(blockDecorationId);
+			const selection = editor.getSelection();
+			if (!blockRange || !selection?.isEmpty()) {
+				return false;
+			}
+			const cursor = selection.getPosition();
+			const isBackspaceAtStart = e.keyCode === KeyCode.Backspace && cursor.equals(blockRange.getStartPosition());
+			const isDeleteAtEnd = e.keyCode === KeyCode.Delete && cursor.equals(blockRange.getEndPosition());
+			return isBackspaceAtStart || isDeleteAtEnd;
+		};
 		disposables.add(editor.onKeyDown(e => {
+			if (deletesOutsideBlock(e)) {
+				e.preventDefault();
+				e.stopPropagation();
+				return;
+			}
 			const isSuggestOpen = editor.invokeWithinContext(accessor => accessor.get(IContextKeyService).getContextKeyValue<boolean>('suggestWidgetVisible'));
 			const isPlainEnter = e.keyCode === KeyCode.Enter && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
 			const isClose = (e.keyCode === KeyCode.Escape && !isSuggestOpen) || (e.keyCode === KeyCode.Enter && (e.metaKey || e.ctrlKey)) || (isPlainEnter && !isSuggestOpen && isFinishingBlock());
