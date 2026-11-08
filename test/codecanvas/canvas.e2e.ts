@@ -113,6 +113,16 @@ const assert = (condition, message) => {
 	await page.waitForTimeout(1000);
 	const savedLayout = fs.existsSync(cartLayoutFile) ? JSON.parse(fs.readFileSync(cartLayoutFile, 'utf8')) : undefined;
 	assert(savedLayout?.blocks?.isEmpty, 'moving a block saves the layout to .codecanvas/');
+	const movedBox = (await block('isEmpty').boundingBox())!;
+	await page.locator(`${canvas} .cc-root`).focus();
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(300);
+	const undoneBox = (await block('isEmpty').boundingBox())!;
+	assert(Math.abs(undoneBox.x - isEmptyBox.x) < 2 && Math.abs(undoneBox.y - isEmptyBox.y) < 2, 'Cmd+Z moves the block back');
+	await page.keyboard.press('Meta+Shift+z');
+	await page.waitForTimeout(300);
+	const redoneBox = (await block('isEmpty').boundingBox())!;
+	assert(Math.abs(redoneBox.x - movedBox.x) < 2 && Math.abs(redoneBox.y - movedBox.y) < 2, 'Cmd+Shift+Z moves it again');
 	await page.screenshot({ path: path.join(screenshots, 'canvas-opened.png') });
 	const debugTargets = await (await fetch('http://127.0.0.1:9333/json')).json();
 	assert(debugTargets.some(target => target.type === 'worker' && target.title === 'CodeCanvasProjectWorker'), 'usage links are resolved in a worker');

@@ -25,6 +25,7 @@ import { Range } from '../../../../editor/common/core/range.js';
 import { Selection } from '../../../../editor/common/core/selection.js';
 import { ITextModel, TrackedRangeStickiness } from '../../../../editor/common/model.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
+import { IResourceUndoRedoElement, IUndoRedoService, UndoRedoElementType } from '../../../../platform/undoRedo/common/undoRedo.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { localize } from '../../../../nls.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
@@ -47,7 +48,7 @@ import { DEFAULT_EDITOR_ASSOCIATION, IEditorOpenContext } from '../../../common/
 import { IEditorGroup } from '../../../services/editor/common/editorGroupsService.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { CODE_CANVAS_EDITOR_ID, CODE_CANVAS_LAYOUT_FOLDER, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
-import { CodeCanvas, EditorHandle, EditorOptions, Engine, FileLayout, HostDiagnostic, loadEngine, OtherFileChange } from './codeCanvasEngine.js';
+import { CodeCanvas, EditorHandle, EditorOptions, Engine, FileLayout, HostDiagnostic, LayoutEdit, loadEngine, OtherFileChange } from './codeCanvasEngine.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
 import { selectBlockWhenCodeViewShows } from './codeCanvasCodeViewLanes.js';
 import { ICodeCanvasProjectService } from './codeCanvasProjects.js';
@@ -103,6 +104,7 @@ export class CodeCanvasEditor extends EditorPane {
 		@ILanguageService private readonly languageService: ILanguageService,
 		@INotificationService private readonly notificationService: INotificationService,
 		@ICommandService private readonly commandService: ICommandService,
+		@IUndoRedoService private readonly undoRedoService: IUndoRedoService,
 	) {
 		super(CodeCanvasEditor.ID, group, telemetryService, themeService, storageService);
 		this.showsChangesContext = CODE_CANVAS_SHOWS_CHANGES.bindTo(group.scopedContextKeyService);
@@ -242,6 +244,8 @@ export class CodeCanvasEditor extends EditorPane {
 				layoutToSave = layout;
 				layoutSaver.schedule();
 			},
+			// In the file's undo history, so undo and redo move blocks in order with the text edits.
+			onLayoutEdit: edit => this.undoRedoService.pushElement(new CodeCanvasLayoutUndoElement(model.uri, edit, layout => this.putLayoutBack(engine, model.uri, layoutResource, layout))),
 			onUndo: () => void model.undo(),
 			onRedo: () => void model.redo(),
 			onOpenCode: block => this.openCodeAt(model, block),
@@ -377,6 +381,21 @@ export class CodeCanvasEditor extends EditorPane {
 	private applyEditorFont() {
 		const fontFamily = this.configurationService.getValue<string>('editor.fontFamily');
 		this.container?.style.setProperty('--cc-font', fontFamily || 'var(--monaco-monospace-font)');
+	}
+
+	/** Undoing or redoing a move: on the canvas if it shows the file, else straight into the layout file. */
+	private async putLayoutBack(engine: Engine, resource: URI, layoutResource: URI, layout: FileLayout) {
+		const shownFile = this.shownFile;
+		const canvasShowsFile = !!shownFile && isEqual(shownFile.model.uri, resource);
+		if (canvasShowsFile) {
+			shownFile.canvas.setLayout(layout);
+			return;
+		}
+		try {
+			await this.fileService.writeFile(layoutResource, VSBuffer.fromString(engine.serializeLayout(layout, null)));
+		} catch (error) {
+			this.logService.error('[codeCanvas] could not save block positions', error);
+		}
 	}
 
 	private async saveLayout(engine: Engine, resource: URI, layout: FileLayout, canvas: CodeCanvas, isLayoutInRepo: boolean) {
@@ -572,6 +591,24 @@ const BLOCK_EDITOR_OPTIONS = {
 	lineNumbersMinChars: 3,
 	fixedOverflowWidgets: true,
 };
+
+class CodeCanvasLayoutUndoElement implements IResourceUndoRedoElement {
+	readonly type = UndoRedoElementType.Resource;
+	readonly code = 'codeCanvas.moveBlocks';
+	readonly label: string;
+
+	constructor(readonly resource: URI, private readonly edit: LayoutEdit, private readonly putLayout: (layout: FileLayout) => void) {
+		this.label = edit.label;
+	}
+
+	undo(): void {
+		this.putLayout(this.edit.before);
+	}
+
+	redo(): void {
+		this.putLayout(this.edit.after);
+	}
+}
 
 function layoutStorageKey(layoutResource: URI): string {
 	return `codeCanvas.layout:${layoutResource.toString()}`;
