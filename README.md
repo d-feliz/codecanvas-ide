@@ -1,3 +1,7 @@
+<p align="center">
+  <img alt="CodeCanvas app icon" src="resources/linux/code.png" width="128">
+</p>
+
 # CodeCanvas IDE
 
 A desktop IDE for TypeScript and JavaScript where every file can also be edited as a zoomable
@@ -6,7 +10,7 @@ them. Anything you change on the canvas is written back to the text file, and th
 the text stays the source of truth.
 
 <p align="center">
-  <img alt="cart.ts open as a canvas in CodeCanvas" src="build/codecanvas/canvas.png" width="800">
+  <img alt="cart.ts open as a canvas in CodeCanvas Studio" src="build/codecanvas/canvas.png" width="800">
 </p>
 
 Everything else (the explorer, search, source control, the terminal, extensions) works as in VS Code.
