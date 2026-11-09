@@ -34,7 +34,7 @@ import { HoverPosition } from '../../../../base/browser/ui/hover/hoverWidget.js'
 import { ACCOUNTS_ACTIVITY_ID } from '../../../common/activity.js';
 import { createActivityActionBar, StudioSignedInAccount } from './studioAccount.js';
 import { STUDIO_GO_TO_ANYTHING_COMMAND_ID, STUDIO_TOGGLE_THEME_COMMAND_ID } from './studioGoToAnything.js';
-import { studioIcon } from './studioIcons.js';
+import { studioIcon, studioLogoMark } from './studioIcons.js';
 import { StudioOpenFileMenu } from './studioOpenFileMenu.js';
 
 const TYPESCRIPT_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
@@ -88,7 +88,7 @@ export class StudioTopBar extends Disposable {
 
 		const leftGroup = append(topBar, $('.studio-top-group.studio-top-left'));
 		const projectButton = this.createButton(leftGroup, 'studio-project', localize('studio.openRecent', "Open Recent"), () => this.commandService.executeCommand('workbench.action.openRecent'));
-		projectButton.append(studioIcon('project', 18));
+		projectButton.append(studioLogoMark(20));
 		this.projectLabel = append(projectButton, $('span.studio-project-name'));
 		append(projectButton, $('span.studio-faint')).append(studioIcon('chevronDown', 12));
 		this.branchButton = this.createButton(leftGroup, 'studio-branch', localize('studio.checkout', "Checkout to…"), () => this.commandService.executeCommand('git.checkout'));

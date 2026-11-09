@@ -7,7 +7,6 @@ type IconShape = readonly ['path' | 'rect' | 'circle', Record<string, string>];
 
 // The line icons of the Studio design (16px grid, drawn with the current text color).
 export const STUDIO_ICONS = {
-	project: [['rect', { x: '1.5', y: '1.5', width: '7', height: '7', rx: '2' }], ['rect', { x: '9.5', y: '9.5', width: '7', height: '7', rx: '2' }], ['path', { d: 'M8.5 5h3a2 2 0 0 1 2 2v2.5' }]],
 	chevronDown: [['path', { d: 'M3 4.5l3 3 3-3' }]],
 	chevronLeft: [['path', { d: 'M7.5 3l-3 3 3 3' }]],
 	chevronRight: [['path', { d: 'M4.5 3l3 3-3 3' }]],
@@ -21,7 +20,7 @@ export const STUDIO_ICONS = {
 export type StudioIconName = keyof typeof STUDIO_ICONS;
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-const ICON_VIEW_BOX_SIZE: Partial<Record<StudioIconName, number>> = { project: 18, chevronDown: 12, chevronLeft: 12, chevronRight: 12, branch: 14, search: 14 };
+const ICON_VIEW_BOX_SIZE: Partial<Record<StudioIconName, number>> = { chevronDown: 12, chevronLeft: 12, chevronRight: 12, branch: 14, search: 14 };
 
 export function studioIcon(name: StudioIconName, size: number): SVGSVGElement {
 	const viewBoxSize = ICON_VIEW_BOX_SIZE[name] ?? 16;
@@ -35,6 +34,31 @@ export function studioIcon(name: StudioIconName, size: number): SVGSVGElement {
 	svg.setAttribute('aria-hidden', 'true');
 	svg.classList.add('studio-icon');
 	for (const [tag, attributes] of STUDIO_ICONS[name]) {
+		const shape = document.createElementNS(SVG_NAMESPACE, tag);
+		for (const [attribute, value] of Object.entries(attributes)) {
+			shape.setAttribute(attribute, value);
+		}
+		svg.appendChild(shape);
+	}
+	return svg;
+}
+
+/** The CodeCanvas mark (build/codecanvas/make-icons.ts draws the same one): blocks in the text colour, the output block in the accent colour. */
+export function studioLogoMark(size: number): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+	svg.setAttribute('width', `${size}`);
+	svg.setAttribute('height', `${size}`);
+	svg.setAttribute('viewBox', '0 0 48 48');
+	svg.setAttribute('fill', 'none');
+	svg.setAttribute('aria-hidden', 'true');
+	svg.classList.add('studio-logo-mark');
+	const shapes: IconShape[] = [
+		['path', { d: 'M20 14h8M13 21v4a4 4 0 0 0 4 4M35 21v4a4 4 0 0 1-4 4', stroke: 'currentColor', 'stroke-width': '3', 'stroke-linecap': 'round' }],
+		['rect', { x: '6', y: '7', width: '14', height: '14', rx: '3.5', fill: 'currentColor' }],
+		['rect', { x: '28', y: '7', width: '14', height: '14', rx: '3.5', fill: 'currentColor' }],
+		['rect', { x: '17', y: '27', width: '14', height: '14', rx: '3.5', class: 'studio-logo-accent' }],
+	];
+	for (const [tag, attributes] of shapes) {
 		const shape = document.createElementNS(SVG_NAMESPACE, tag);
 		for (const [attribute, value] of Object.entries(attributes)) {
 			shape.setAttribute(attribute, value);

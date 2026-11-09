@@ -60,8 +60,13 @@
 	color: var(--vscode-studio-strong);
 }
 
-.monaco-workbench .studio-top-bar .studio-project > .studio-icon {
-	color: var(--vscode-studio-ink);
+.monaco-workbench .studio-top-bar .studio-project > .studio-logo-mark {
+	flex: none;
+	color: var(--vscode-studio-strong);
+}
+
+.monaco-workbench .studio-top-bar .studio-logo-mark .studio-logo-accent {
+	fill: var(--vscode-studio-ink);
 }
 
 .monaco-workbench .studio-top-bar .studio-project-name {

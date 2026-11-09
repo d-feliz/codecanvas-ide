@@ -77,7 +77,8 @@ Kept small on purpose, so merging new VS Code versions stays easy:
   files, allow the engine import in workbench contributions, and give `test/codecanvas` import rules.
 - `build/lib/i18n.resources.json`: the canvas's strings.
 - `resources/darwin/code.icns`, `resources/linux/code.png`, `resources/win32/code.ico`: the CodeCanvas
-  icon, rendered from `build/codecanvas/icon.svg` with `node build/codecanvas/make-icons.ts` (macOS).
+  icon. These and the other logo files (favicon, Windows tiles, title bar icon, watermarks) are drawn from
+  the mark with `node build/codecanvas/make-icons.ts` (macOS).
 - `README.md`: about CodeCanvas instead of VS Code, with a screenshot (`build/codecanvas/canvas.png`).
 - This file.
 
