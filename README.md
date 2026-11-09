@@ -40,15 +40,16 @@ organizes your code without getting in your way.
   default off. JavaScript works the same way, without the types (CommonJS `require()` too).
 - **Work with React.** React files are recognized by themselves, and the canvas toolbar shows the
   language (JS, TS, React JS/TS/JSX/TSX). Components are their own blocks, each `useState` is a
-  state block inside its component, `<Child />` draws a line to the child, and components are laid
-  out as a tree.
+  state block inside its component, named after its value and its setter (`coupon / setCoupon`),
+  `<Child />` draws a line to the child, and components are laid out as a tree.
 - **Edit a block** by double-clicking it. A Monaco editor opens on the block's own lines of the
   file, so IntelliSense, hovers and error squiggles work as in a text editor. Undo, save and unsaved
   changes are shared with the text editor. Enter twice after the block's last line (its `}`, or
   `const fee = 2;`) closes the editor.
 - **See errors on blocks.** Errors from Problems put a red marker with a count on the block.
 - **Follow usages**, also across files. The references list shows the blocks that use a block and
-  the blocks it uses; click one to open that file at the block.
+  the blocks it uses; click one to open that file at the block. ⌘-click an import block to open the
+  file it imports, and ⌘[ / ⌘] go back and forward.
 - **Rename with F2.** Every usage changes, in every file; one undo reverts all of it.
 - **Create blocks by typing.** Start typing on the canvas, or double-click empty space: an empty
   block opens, and what you type goes into the file and becomes a block there. Right-click empty
@@ -65,6 +66,9 @@ organizes your code without getting in your way.
   desaturated, added and changed blocks get a chip, removed blocks show in red where they were.
 - **Resolve merge conflicts** on the canvas: conflicted blocks are marked, and Keep current /
   incoming / both resolve them. VS Code's own conflict actions also work in the block editor.
+- **Read JSON files.** A `.json` or `.jsonc` file stays text, with a few marks on top: the path of
+  the value under the cursor (with Copy path), its type, a key count on folded objects, a Structure
+  view of the top-level keys, and a filter that dims what does not match.
 
 The project follows the folder's config files (path aliases, `baseUrl`, `extends`), also in
 monorepos: every package's files use that package's `tsconfig.json`, and packages that import each
