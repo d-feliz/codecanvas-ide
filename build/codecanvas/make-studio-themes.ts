@@ -8,16 +8,11 @@
 //   node build/codecanvas/make-studio-themes.ts
 import * as fs from 'fs';
 import * as path from 'path';
-import { STUDIO_DARK, STUDIO_KINDS_DARK, STUDIO_KINDS_LIGHT, STUDIO_LIGHT, type StudioKindColors, type StudioPalette } from '../../src/vs/workbench/browser/studio/studioTokens.ts';
+import { STUDIO_DARK, STUDIO_JSON_DARK, STUDIO_JSON_LIGHT, STUDIO_KINDS_DARK, STUDIO_KINDS_LIGHT, STUDIO_LIGHT, withAlpha, type StudioJsonColors, type StudioKindColors, type StudioPalette } from '../../src/vs/workbench/browser/studio/studioTokens.ts';
 
 const themesFolder = path.join(import.meta.dirname, '..', '..', 'extensions', 'theme-codecanvas-studio', 'themes');
 
-/** `#RRGGBB` with an alpha from 0 to 1 → `#RRGGBBAA`. */
-function withAlpha(color: string, alpha: number): string {
-	return color.slice(0, 7) + Math.round(alpha * 255).toString(16).padStart(2, '0').toUpperCase();
-}
-
-function workbenchColors(t: StudioPalette, kinds: StudioKindColors, isDark: boolean): Record<string, string> {
+function workbenchColors(t: StudioPalette, kinds: StudioKindColors, json: StudioJsonColors, isDark: boolean): Record<string, string> {
 	const overlay = (alpha: number) => (isDark ? withAlpha('#FFFFFF', alpha) : withAlpha('#000000', alpha));
 	const secondaryBorder = isDark ? '#33363C' : '#D6D6D0';
 	const studioColors = Object.fromEntries([
@@ -161,7 +156,7 @@ function workbenchColors(t: StudioPalette, kinds: StudioKindColors, isDark: bool
 		'editor.findMatchHighlightBackground': withAlpha(t.accent, 0.2),
 		'editor.lineHighlightBackground': overlay(0.025),
 		'editor.lineHighlightBorder': '#00000000',
-		'editorIndentGuide.background1': overlay(0.06),
+		'editorIndentGuide.background1': json.indentGuide,
 		'editorIndentGuide.activeBackground1': overlay(0.16),
 		'editorWhitespace.foreground': withAlpha(t.faintest, 0.4),
 		'editorBracketMatch.background': withAlpha(t.accent, 0.14),
@@ -294,7 +289,7 @@ function workbenchColors(t: StudioPalette, kinds: StudioKindColors, isDark: bool
 	};
 }
 
-function tokenColors(t: StudioPalette) {
+function tokenColors(t: StudioPalette, json: StudioJsonColors) {
 	const rule = (name: string, scope: string[], foreground: string, fontStyle?: string) => ({ name, scope, settings: fontStyle ? { foreground, fontStyle } : { foreground } });
 	return [
 		rule('Code', ['source', 'variable', 'meta.embedded', 'punctuation'], t.codeText),
@@ -307,17 +302,24 @@ function tokenColors(t: StudioPalette) {
 		rule('Attributes and properties', ['entity.other.attribute-name', 'variable.other.property', 'support.type.property-name'], t.muted),
 		rule('Markdown headings', ['markup.heading', 'entity.name.section'], t.strong, 'bold'),
 		rule('Invalid', ['invalid'], t.error),
+		// JSON and JSON with comments: their scopes end in .json and .json.comments.
+		rule('JSON keys', ['support.type.property-name.json', 'punctuation.support.type.property-name.begin.json', 'punctuation.support.type.property-name.end.json'], json.key),
+		rule('JSON strings', ['string.quoted.double.json', 'string.quoted.double.json punctuation.definition.string'], json.string),
+		rule('JSON numbers', ['constant.numeric.json'], json.number),
+		// Also colours null, which the grammar does not tell apart; the JSON view colours null itself.
+		rule('JSON booleans', ['constant.language.json'], json.boolean),
+		rule('JSON punctuation', ['punctuation.definition.dictionary.begin.json', 'punctuation.definition.dictionary.end.json', 'punctuation.definition.array.begin.json', 'punctuation.definition.array.end.json', 'punctuation.separator.dictionary.key-value.json', 'punctuation.separator.dictionary.pair.json', 'punctuation.separator.array.json'], json.punctuation),
 	];
 }
 
-function theme(name: string, t: StudioPalette, kinds: StudioKindColors, isDark: boolean) {
+function theme(name: string, t: StudioPalette, kinds: StudioKindColors, json: StudioJsonColors, isDark: boolean) {
 	return {
 		$schema: 'vscode://schemas/color-theme',
 		name,
 		type: isDark ? 'dark' : 'light',
 		semanticHighlighting: true,
-		colors: workbenchColors(t, kinds, isDark),
-		tokenColors: tokenColors(t),
+		colors: workbenchColors(t, kinds, json, isDark),
+		tokenColors: tokenColors(t, json),
 		semanticTokenColors: {
 			'function': t.syntaxFunction,
 			'method': t.syntaxFunction,
@@ -334,6 +336,6 @@ function theme(name: string, t: StudioPalette, kinds: StudioKindColors, isDark: 
 }
 
 fs.mkdirSync(themesFolder, { recursive: true });
-fs.writeFileSync(path.join(themesFolder, 'studio-dark-color-theme.json'), JSON.stringify(theme('Studio Dark', STUDIO_DARK, STUDIO_KINDS_DARK, true), null, '\t') + '\n');
-fs.writeFileSync(path.join(themesFolder, 'studio-light-color-theme.json'), JSON.stringify(theme('Studio Light', STUDIO_LIGHT, STUDIO_KINDS_LIGHT, false), null, '\t') + '\n');
+fs.writeFileSync(path.join(themesFolder, 'studio-dark-color-theme.json'), JSON.stringify(theme('Studio Dark', STUDIO_DARK, STUDIO_KINDS_DARK, STUDIO_JSON_DARK, true), null, '\t') + '\n');
+fs.writeFileSync(path.join(themesFolder, 'studio-light-color-theme.json'), JSON.stringify(theme('Studio Light', STUDIO_LIGHT, STUDIO_KINDS_LIGHT, STUDIO_JSON_LIGHT, false), null, '\t') + '\n');
 console.log('wrote', themesFolder);

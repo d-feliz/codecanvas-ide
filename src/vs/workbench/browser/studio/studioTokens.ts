@@ -166,3 +166,77 @@ export const STUDIO_KINDS_LIGHT: StudioKindColors = {
 	namespace: '#0B6F64',
 	statement: '#3F434A',
 };
+
+/** The JSON view: the colour of each kind of value (also the JSON syntax colours of the Studio themes), and the marks around the text. */
+export interface StudioJsonColors {
+	string: string;
+	number: string;
+	boolean: string;
+	null: string;
+	key: string;
+	punctuation: string;
+	/** Objects and arrays in the path bar's type chip. */
+	container: string;
+	indentGuide: string;
+	colorSwatchBorder: string;
+	foldChipBackground: string;
+	foldChipText: string;
+	/** The line under the cursor, and the lines of the object or array it opens. */
+	selectedLine: string;
+	selectedContainerLines: string;
+	selectedLineNumber: string;
+	typeHint: string;
+	crumb: string;
+	currentCrumb: string;
+	crumbSeparator: string;
+	invalid: string;
+}
+
+/** `#RRGGBB` with an alpha from 0 to 1 → `#RRGGBBAA`. */
+export function withAlpha(color: string, alpha: number): string {
+	return color.slice(0, 7) + Math.round(alpha * 255).toString(16).padStart(2, '0').toUpperCase();
+}
+
+export const STUDIO_JSON_DARK: StudioJsonColors = {
+	string: '#9FD3EC',
+	number: '#E8B04A',
+	boolean: '#A98BF0',
+	null: '#A9ADB6',
+	key: '#C9CCD2',
+	punctuation: '#6E727B',
+	container: '#C9CCD2',
+	indentGuide: '#24262B',
+	colorSwatchBorder: '#3A3D44',
+	foldChipBackground: '#1C1D21',
+	foldChipText: '#8B8F98',
+	selectedLine: withAlpha('#FFFFFF', 0.07),
+	selectedContainerLines: withAlpha('#FFFFFF', 0.025),
+	selectedLineNumber: '#F2F2F3',
+	typeHint: '#8B8F98',
+	crumb: '#8B8F98',
+	currentCrumb: '#F2F2F3',
+	crumbSeparator: '#6E727B',
+	invalid: '#F2836B',
+};
+
+export const STUDIO_JSON_LIGHT: StudioJsonColors = {
+	string: '#1D6A92',
+	number: '#9A6406',
+	boolean: '#6B48C8',
+	null: '#5F626A',
+	key: '#2E3036',
+	punctuation: '#8A8D94',
+	container: '#2E3036',
+	indentGuide: '#E2E2DF',
+	colorSwatchBorder: '#DADAD4',
+	foldChipBackground: '#E9E9E6',
+	foldChipText: '#5F626A',
+	selectedLine: withAlpha('#000000', 0.06),
+	selectedContainerLines: withAlpha('#000000', 0.025),
+	selectedLineNumber: '#121316',
+	typeHint: '#5F626A',
+	crumb: '#5F626A',
+	currentCrumb: '#0F1012',
+	crumbSeparator: '#8A8D94',
+	invalid: '#B4362B',
+};

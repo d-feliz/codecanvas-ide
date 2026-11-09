@@ -159,6 +159,10 @@
 			"project": "vscode-workbench"
 		},
 		{
+			"name": "vs/workbench/contrib/studioJson",
+			"project": "vscode-workbench"
+		},
+		{
 			"name": "vs/workbench/contrib/mergeEditor",
 			"project": "vscode-workbench"
 		},

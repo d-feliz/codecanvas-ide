@@ -329,6 +329,7 @@ import './contrib/mediaPreview/browser/mediaPreview.contribution.js';
 // Code Canvas: TypeScript files as an editable diagram
 import './contrib/codeCanvas/browser/codeCanvas.contribution.js';
 import './contrib/studio/browser/studio.contribution.js';
+import './contrib/studioJson/browser/studioJson.contribution.js';
 
 // Studio (CodeCanvas's own look)
 import './browser/studio/studio.contribution.js';

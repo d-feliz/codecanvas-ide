@@ -169,7 +169,7 @@
 		"editor.findMatchHighlightBackground": "#E8C27A33",
 		"editor.lineHighlightBackground": "#FFFFFF06",
 		"editor.lineHighlightBorder": "#00000000",
-		"editorIndentGuide.background1": "#FFFFFF0F",
+		"editorIndentGuide.background1": "#24262B",
 		"editorIndentGuide.activeBackground1": "#FFFFFF29",
 		"editorWhitespace.foreground": "#6E727B66",
 		"editorBracketMatch.background": "#E8C27A24",
@@ -413,6 +413,60 @@
 			],
 			"settings": {
 				"foreground": "#F2877D"
+			}
+		},
+		{
+			"name": "JSON keys",
+			"scope": [
+				"support.type.property-name.json",
+				"punctuation.support.type.property-name.begin.json",
+				"punctuation.support.type.property-name.end.json"
+			],
+			"settings": {
+				"foreground": "#C9CCD2"
+			}
+		},
+		{
+			"name": "JSON strings",
+			"scope": [
+				"string.quoted.double.json",
+				"string.quoted.double.json punctuation.definition.string"
+			],
+			"settings": {
+				"foreground": "#9FD3EC"
+			}
+		},
+		{
+			"name": "JSON numbers",
+			"scope": [
+				"constant.numeric.json"
+			],
+			"settings": {
+				"foreground": "#E8B04A"
+			}
+		},
+		{
+			"name": "JSON booleans",
+			"scope": [
+				"constant.language.json"
+			],
+			"settings": {
+				"foreground": "#A98BF0"
+			}
+		},
+		{
+			"name": "JSON punctuation",
+			"scope": [
+				"punctuation.definition.dictionary.begin.json",
+				"punctuation.definition.dictionary.end.json",
+				"punctuation.definition.array.begin.json",
+				"punctuation.definition.array.end.json",
+				"punctuation.separator.dictionary.key-value.json",
+				"punctuation.separator.dictionary.pair.json",
+				"punctuation.separator.array.json"
+			],
+			"settings": {
+				"foreground": "#6E727B"
 			}
 		}
 	],

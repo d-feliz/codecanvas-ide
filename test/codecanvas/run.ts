@@ -49,6 +49,28 @@ function prepareProject() {
 	fs.writeFileSync(path.join(receipts, 'src', 'receiptFormat.ts'), `export function formatReceipt(total: number): string {\n  return 'Total: ' + total.toFixed(2);\n}\n`);
 	fs.mkdirSync(path.join(project, 'node_modules', '@shop'), { recursive: true });
 	fs.symlinkSync(path.join('..', '..', 'packages', 'receipts'), path.join(project, 'node_modules', '@shop', 'receipts'));
+	// An Expo config for the JSON view: nested objects, an array, a colour, a boolean and a null.
+	fs.writeFileSync(path.join(project, 'app.json'), [
+		`{`,
+		`  "expo": {`,
+		`    "name": "Vooks",`,
+		`    "slug": "vooks-expo",`,
+		`    "version": "4.12.0",`,
+		`    "splash": {`,
+		`      "image": "./assets/splash.png",`,
+		`      "backgroundColor": "#1B1B2F"`,
+		`    },`,
+		`    "android": {`,
+		`      "package": "com.example.vooks",`,
+		`      "versionCode": 412`,
+		`    },`,
+		`    "plugins": ["expo-localization", "expo-av"],`,
+		`    "updates": { "enabled": true },`,
+		`    "extra": { "eas": { "projectId": null } }`,
+		`  }`,
+		`}`,
+		``,
+	].join('\n'));
 	fs.writeFileSync(path.join(project, '.gitignore'), 'node_modules\n');
 	// A git repo with one commit, so "Show Changes" has a committed version to compare with.
 	const git = (...gitArgs: string[]) => execFileSync('git', ['-c', 'user.name=CodeCanvas e2e', '-c', 'user.email=e2e@codecanvas.invalid', ...gitArgs], { cwd: project, stdio: 'ignore' });

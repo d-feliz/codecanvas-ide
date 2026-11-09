@@ -5,6 +5,7 @@
 
 // End-to-end check of Studio, CodeCanvas's own look, in a running CodeCanvas window. Run it
 // through run.ts, after canvas.e2e.ts. It changes the user settings and puts them back at the end.
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { chromium } from 'playwright';
@@ -228,6 +229,79 @@ const assert = (condition, message) => {
 		await runCommand('View: Toggle Panel Visibility');
 		await page.waitForTimeout(500);
 		assert(!await isShown('.studio-shell > .part.panel'), 'and the drawer hides again');
+
+		await checkJsonView();
+	};
+
+	const checkJsonView = async () => {
+		const jsonEditor = '.part.editor .monaco-editor.studio-json-editor';
+		const goToLine = async (lineNumber: number) => {
+			await page.keyboard.press('Control+G');
+			await page.waitForSelector('.quick-input-widget input');
+			await page.keyboard.type(String(lineNumber));
+			await page.keyboard.press('Enter');
+			await page.waitForTimeout(500);
+		};
+		const pathBarText = () => page.locator(`${jsonEditor} .studio-json-crumbs`).innerText();
+		const statusText = () => page.locator('[id="studio.json.status"]').innerText();
+
+		await openFile('app.json');
+		await page.waitForSelector(`${jsonEditor} .studio-json-path-bar`, { timeout: 15000 });
+		await goToLine(12);
+		assert((await pathBarText()).replace(/\s+/g, '') === 'app.json›expo›android›versionCode', `JSON view: the path bar shows the path of the value under the cursor (${await pathBarText()})`);
+		assert(await page.locator(`${jsonEditor} .studio-json-type-chip`).innerText() === 'number' && await page.locator(`${jsonEditor} .studio-json-preview`).innerText() === '412', 'with its type and a preview of the value');
+		assert(await page.locator(`${jsonEditor} .studio-json-selected-line.studio-json-type-number`).count() === 1, 'the line under the cursor is marked with its type');
+		assert(/^Valid JSON · 11 values · 4 levels$/.test(await statusText()), `the status bar counts the values and levels (${await statusText()})`);
+
+		const clipboardBefore = execFileSync('pbpaste').toString();
+		await page.locator(`${jsonEditor} .studio-json-copy-path`).click();
+		await page.waitForTimeout(300);
+		const copiedPath = execFileSync('pbpaste').toString();
+		execFileSync('pbcopy', { input: clipboardBefore });
+		assert(copiedPath === 'expo.android.versionCode', `Copy path copies the dotted path (${copiedPath})`);
+
+		const structureRows = page.locator('.studio-json-structure-row');
+		assert(await structureRows.count() === 8, `the Structure view lists the keys inside "expo" (${await structureRows.count()})`);
+		assert((await page.locator('.studio-json-structure-row.studio-json-structure-selected').innerText()).includes('android'), 'and marks the key that holds the cursor');
+		await page.locator('.studio-json-structure-row:has-text("splash")').click();
+		await page.waitForTimeout(300);
+		assert((await pathBarText()).replace(/\s+/g, '') === 'app.json›expo›splash', 'a click on a row moves the cursor to that key');
+		await page.locator(`${jsonEditor} .studio-json-crumb:text-is("expo")`).click();
+		await page.waitForTimeout(300);
+		assert((await pathBarText()).replace(/\s+/g, '') === 'app.json›expo', 'and so does a click on a key of the path bar');
+
+		const swatch = await box(`${jsonEditor} .colorpicker-color-decoration`).catch(() => undefined);
+		assert(!!swatch && Math.round(swatch.width) === 11, 'a "#RRGGBB" value shows an 11px colour swatch');
+
+		await page.locator(`${jsonEditor} .studio-json-dock-button:text-is("Fold all")`).click();
+		await page.waitForTimeout(800);
+		// The editor writes the space as a no-break space.
+		const foldChips = (await page.locator(`${jsonEditor} .studio-json-fold-chip`).allInnerTexts()).map(text => text.replace(/\u00a0/g, ' '));
+		assert(foldChips.includes('1 key'), `Fold all folds, and a folded object shows how many keys it holds (${foldChips.join(', ')})`);
+		await page.screenshot({ path: path.join(screenshots, 'studio-json-folded.png') });
+		await page.locator(`${jsonEditor} .studio-json-dock-button:text-is("Unfold all")`).click();
+		await page.waitForTimeout(800);
+		assert(await page.locator(`${jsonEditor} .studio-json-fold-chip`).count() === 0, 'Unfold all unfolds, and the counts go away');
+
+		await page.locator(`${jsonEditor} .studio-json-filter-input`).fill('vooks');
+		await page.waitForTimeout(300);
+		assert(await page.locator(`${jsonEditor} .studio-json-filter-match`).count() >= 2 && await page.locator(`${jsonEditor} .studio-json-filtered-out`).count() > 0, 'the filter marks what matches and dims the other lines');
+		await goToLine(12);
+		await page.screenshot({ path: path.join(screenshots, 'studio-json.png') });
+		await page.locator(`${jsonEditor} .studio-json-filter-input`).click();
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(300);
+		assert(await page.locator(`${jsonEditor} .studio-json-filtered-out`).count() === 0, 'and Escape clears it');
+
+		await goToLine(3);
+		await page.keyboard.press('End');
+		await page.keyboard.type('x');
+		await page.waitForTimeout(600);
+		assert(await statusText() === 'Invalid JSON · line 3', `a file that does not parse shows the line of the error (${await statusText()})`);
+		await page.keyboard.press('Meta+Z');
+		await page.waitForTimeout(600);
+		assert(/^Valid JSON/.test(await statusText()), 'and undo works as before');
+		await runCommand('File: Revert File');
 	};
 
 	try {

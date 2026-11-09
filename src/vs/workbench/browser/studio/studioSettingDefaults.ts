@@ -17,6 +17,10 @@ export function registerStudioSettingDefaults(): void {
 			'workbench.activityBar.location': 'top',
 			'workbench.editor.showTabs': 'none',
 			'breadcrumbs.enabled': false,
+			// JSON's own colour provider only knows colours its schema marks; the default one finds every "#RRGGBB".
+			// Bracket colours would hide the JSON view's punctuation colour.
+			'[json]': { 'editor.defaultColorDecorators': 'always', 'editor.bracketPairColorization.enabled': false },
+			'[jsonc]': { 'editor.defaultColorDecorators': 'always', 'editor.bracketPairColorization.enabled': false },
 		},
 	}]);
 }

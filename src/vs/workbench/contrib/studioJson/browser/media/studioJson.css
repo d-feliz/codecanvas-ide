@@ -1,0 +1,311 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) CodeCanvas contributors. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/* ---- Marks on the text ---- */
+
+.monaco-editor.studio-json-editor .studio-json-selected-line {
+	background: var(--vscode-studioJson-selectedLine);
+}
+
+.monaco-editor.studio-json-editor .studio-json-selected-container-line {
+	background: var(--vscode-studioJson-selectedContainerLines);
+}
+
+.monaco-editor.studio-json-editor .margin-view-overlays .line-numbers.studio-json-selected-line-number {
+	color: var(--vscode-studioJson-selectedLineNumber);
+}
+
+/* The type of the selected value, at the right end of its line. */
+.monaco-editor.studio-json-editor .studio-json-selected-line::after {
+	position: absolute;
+	right: 16px;
+	font-family: var(--studio-font-ui), sans-serif;
+	font-size: 11.5px;
+	color: var(--vscode-studioJson-typeHint);
+	pointer-events: none;
+}
+
+.monaco-editor.studio-json-editor .studio-json-type-string::after { content: 'string'; }
+.monaco-editor.studio-json-editor .studio-json-type-number::after { content: 'number'; }
+.monaco-editor.studio-json-editor .studio-json-type-boolean::after { content: 'boolean'; }
+.monaco-editor.studio-json-editor .studio-json-type-null::after { content: 'null'; }
+.monaco-editor.studio-json-editor .studio-json-type-object::after { content: 'object'; }
+.monaco-editor.studio-json-editor .studio-json-type-array::after { content: 'array'; }
+
+.monaco-editor.studio-json-editor .studio-json-null {
+	color: var(--vscode-studioJson-null) !important;
+}
+
+/* `{ … }` then the count: folding's own `⋯` would come after the count, so the count draws the `…` before itself. */
+.monaco-editor.studio-json-editor .studio-json-fold-chip + .inline-folded::after {
+	display: none;
+}
+
+.monaco-editor.studio-json-editor .studio-json-fold-chip::before {
+	content: '…';
+	position: absolute;
+	left: -22px;
+	color: var(--vscode-studioJson-punctuation);
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 13px;
+}
+
+.monaco-editor.studio-json-editor .studio-json-fold-chip {
+	position: relative;
+	cursor: pointer;
+	margin-left: 30px;
+	padding: 0 6px;
+	border-radius: 5px;
+	background: var(--vscode-studioJson-foldChipBackground);
+	color: var(--vscode-studioJson-foldChipText);
+	font-family: var(--studio-font-ui), sans-serif;
+	font-size: 11px;
+}
+
+.monaco-editor.studio-json-editor .studio-json-filtered-out {
+	opacity: 0.35;
+}
+
+.monaco-editor.studio-json-editor .studio-json-filter-match {
+	background: var(--vscode-editor-findMatchHighlightBackground);
+	border-radius: 3px;
+}
+
+.monaco-editor.studio-json-editor .colorpicker-color-decoration {
+	box-sizing: border-box;
+	width: 11px !important;
+	height: 11px;
+	margin: 0 6px 0 0;
+	border: 1px solid var(--vscode-studioJson-colorSwatchBorder);
+	border-radius: 3px;
+	vertical-align: middle;
+}
+
+/* ---- Path bar ---- */
+
+.monaco-editor .studio-json-path-bar-strip {
+	box-sizing: border-box;
+	height: 48px;
+	padding: 6px 8px;
+	background: var(--vscode-editor-background);
+}
+
+.monaco-editor .studio-json-path-bar {
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	height: 36px;
+	padding: 0 6px 0 8px;
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 12px;
+	background: var(--vscode-studio-surface);
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.monaco-editor .studio-json-crumbs {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.monaco-editor .studio-json-crumb {
+	height: 26px;
+	padding: 0 6px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--vscode-studioJson-crumb);
+	font: inherit;
+	cursor: pointer;
+}
+
+.monaco-editor .studio-json-crumb:hover {
+	background: var(--vscode-studio-raised);
+}
+
+.monaco-editor .studio-json-crumb.studio-json-current-crumb {
+	color: var(--vscode-studioJson-currentCrumb);
+}
+
+.monaco-editor .studio-json-crumb-separator {
+	color: var(--vscode-studioJson-crumbSeparator);
+}
+
+.monaco-editor .studio-json-type-chip {
+	flex: none;
+	margin-left: 8px;
+	padding: 2px 8px;
+	border-radius: 6px;
+	font-size: 11px;
+}
+
+.monaco-editor .studio-json-preview {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.monaco-editor .studio-json-path-bar-space {
+	flex: 1;
+}
+
+.monaco-editor .studio-json-copy-path {
+	flex: none;
+	height: 26px;
+	padding: 0 10px;
+	border: 1px solid var(--vscode-studio-raised);
+	border-radius: 7px;
+	background: transparent;
+	color: var(--vscode-studio-muted);
+	font-family: var(--studio-font-ui), sans-serif;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.monaco-editor .studio-json-copy-path:hover {
+	color: var(--vscode-studio-strong);
+}
+
+/* ---- The colour of each type of value, in the path bar and the Structure view ---- */
+
+.studio-json-value-string { color: var(--vscode-studioJson-string); }
+.studio-json-value-number { color: var(--vscode-studioJson-number); }
+.studio-json-value-boolean { color: var(--vscode-studioJson-boolean); }
+.studio-json-value-null { color: var(--vscode-studioJson-null); }
+.studio-json-value-container { color: var(--vscode-studioJson-container); }
+
+.studio-json-chip-string { color: var(--vscode-studioJson-string); background: var(--vscode-studioJson-stringChip); }
+.studio-json-chip-number { color: var(--vscode-studioJson-number); background: var(--vscode-studioJson-numberChip); }
+.studio-json-chip-boolean { color: var(--vscode-studioJson-boolean); background: var(--vscode-studioJson-booleanChip); }
+.studio-json-chip-null { color: var(--vscode-studioJson-null); background: var(--vscode-studioJson-nullChip); }
+.studio-json-chip-container { color: var(--vscode-studioJson-container); background: var(--vscode-studioJson-containerChip); }
+
+/* ---- Bottom bar ---- */
+
+.monaco-editor .studio-json-dock {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 4px;
+	border: 1px solid var(--vscode-studio-border);
+	border-radius: 12px;
+	background: var(--vscode-studio-surface);
+	box-shadow: 0 10px 30px var(--vscode-widget-shadow);
+	font-family: var(--studio-font-ui), sans-serif;
+	font-size: 13px;
+	white-space: nowrap;
+}
+
+.monaco-editor .studio-json-filter {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 32px;
+	padding: 0 10px;
+	border-radius: 8px;
+	background: var(--vscode-studio-input);
+	color: var(--vscode-studio-faint);
+}
+
+.monaco-editor .studio-json-filter-input {
+	width: 180px;
+	border: 0;
+	outline: 0;
+	background: transparent;
+	color: var(--vscode-studio-text);
+	font: inherit;
+}
+
+.monaco-editor .studio-json-filter-input::placeholder {
+	color: var(--vscode-studio-faint);
+}
+
+.monaco-editor .studio-json-dock-divider {
+	width: 1px;
+	height: 20px;
+	margin: 0 4px;
+	background: var(--vscode-studio-raised);
+}
+
+.monaco-editor .studio-json-dock-button {
+	height: 32px;
+	padding: 0 12px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--vscode-studio-muted);
+	font: inherit;
+	cursor: pointer;
+}
+
+.monaco-editor .studio-json-dock-button:hover {
+	background: var(--vscode-studio-raised);
+	color: var(--vscode-studio-strong);
+}
+
+/* ---- Structure view ---- */
+
+.studio-json-structure {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	padding: 0 6px 6px;
+	height: 100%;
+	overflow-y: auto;
+}
+
+.studio-json-structure-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: none;
+	height: 26px;
+	padding: 0 8px;
+	border: 0;
+	border-radius: 7px;
+	background: transparent;
+	color: var(--vscode-studio-muted);
+	text-align: left;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.studio-json-structure-row:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.studio-json-structure-row.studio-json-structure-selected {
+	background: var(--vscode-studio-activeRow);
+	color: var(--vscode-studio-strong);
+}
+
+.studio-json-structure-glyph {
+	flex: none;
+	width: 18px;
+	text-align: center;
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 10.5px;
+	font-weight: 600;
+}
+
+.studio-json-structure-key {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 11.5px;
+}
+
+.studio-json-structure-count {
+	margin-left: auto;
+	font-family: var(--studio-font-mono), monospace;
+	font-size: 10.5px;
+	color: var(--vscode-studio-faintest);
+}

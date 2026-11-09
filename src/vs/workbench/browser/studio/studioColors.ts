@@ -5,9 +5,11 @@
 
 import { localize } from '../../../nls.js';
 import { registerColor } from '../../../platform/theme/common/colorUtils.js';
-import { STUDIO_DARK, STUDIO_KINDS_DARK, STUDIO_KINDS_LIGHT, STUDIO_LIGHT, StudioKindColors, StudioPalette } from './studioTokens.js';
+import { STUDIO_DARK, STUDIO_JSON_DARK, STUDIO_JSON_LIGHT, STUDIO_KINDS_DARK, STUDIO_KINDS_LIGHT, STUDIO_LIGHT, StudioJsonColors, StudioKindColors, StudioPalette, withAlpha } from './studioTokens.js';
 
 const tokenColor = (token: keyof StudioPalette) => ({ dark: STUDIO_DARK[token], light: STUDIO_LIGHT[token], hcDark: STUDIO_DARK[token], hcLight: STUDIO_LIGHT[token] });
+const jsonColor = (token: keyof StudioJsonColors) => ({ dark: STUDIO_JSON_DARK[token], light: STUDIO_JSON_LIGHT[token], hcDark: STUDIO_JSON_DARK[token], hcLight: STUDIO_JSON_LIGHT[token] });
+const jsonColorWithAlpha = (token: keyof StudioJsonColors, alpha: number) => ({ dark: withAlpha(STUDIO_JSON_DARK[token], alpha), light: withAlpha(STUDIO_JSON_LIGHT[token], alpha), hcDark: withAlpha(STUDIO_JSON_DARK[token], alpha), hcLight: withAlpha(STUDIO_JSON_LIGHT[token], alpha) });
 const kindColor = (kind: keyof StudioKindColors) => ({ dark: STUDIO_KINDS_DARK[kind], light: STUDIO_KINDS_LIGHT[kind], hcDark: STUDIO_KINDS_DARK[kind], hcLight: STUDIO_KINDS_LIGHT[kind] });
 
 export const studioCanvas = registerColor('studio.canvas', tokenColor('canvas'), localize('studio.canvas', "The canvas behind Studio's floating surfaces."));
@@ -46,3 +48,28 @@ export const studioKindComponent = registerColor('studio.kindComponent', kindCol
 export const studioKindState = registerColor('studio.kindState', kindColor('state'), localize('studio.kindState', "Color of state blocks on the canvas."));
 export const studioKindNamespace = registerColor('studio.kindNamespace', kindColor('namespace'), localize('studio.kindNamespace', "Color of namespace blocks on the canvas."));
 export const studioKindStatement = registerColor('studio.kindStatement', kindColor('statement'), localize('studio.kindStatement', "Color of statement blocks on the canvas."));
+
+/** The type chip of the JSON path bar: the type's colour on that colour at 16%. */
+const JSON_TYPE_CHIP_ALPHA = 0.16;
+export const studioJsonString = registerColor('studioJson.string', jsonColor('string'), localize('studioJson.string', "Strings in the JSON view."));
+export const studioJsonNumber = registerColor('studioJson.number', jsonColor('number'), localize('studioJson.number', "Numbers in the JSON view."));
+export const studioJsonBoolean = registerColor('studioJson.boolean', jsonColor('boolean'), localize('studioJson.boolean', "true and false in the JSON view."));
+export const studioJsonNull = registerColor('studioJson.null', jsonColor('null'), localize('studioJson.null', "null in the JSON view."));
+export const studioJsonPunctuation = registerColor('studioJson.punctuation', jsonColor('punctuation'), localize('studioJson.punctuation', "Braces, commas and colons in the JSON view, and the `…` of a folded object or array."));
+export const studioJsonContainer = registerColor('studioJson.container', jsonColor('container'), localize('studioJson.container', "Objects and arrays in the JSON view's path bar."));
+export const studioJsonStringChip = registerColor('studioJson.stringChip', jsonColorWithAlpha('string', JSON_TYPE_CHIP_ALPHA), localize('studioJson.stringChip', "Background of the string type chip in the JSON path bar."));
+export const studioJsonNumberChip = registerColor('studioJson.numberChip', jsonColorWithAlpha('number', JSON_TYPE_CHIP_ALPHA), localize('studioJson.numberChip', "Background of the number type chip in the JSON path bar."));
+export const studioJsonBooleanChip = registerColor('studioJson.booleanChip', jsonColorWithAlpha('boolean', JSON_TYPE_CHIP_ALPHA), localize('studioJson.booleanChip', "Background of the boolean type chip in the JSON path bar."));
+export const studioJsonNullChip = registerColor('studioJson.nullChip', jsonColorWithAlpha('null', JSON_TYPE_CHIP_ALPHA), localize('studioJson.nullChip', "Background of the null type chip in the JSON path bar."));
+export const studioJsonContainerChip = registerColor('studioJson.containerChip', jsonColorWithAlpha('container', JSON_TYPE_CHIP_ALPHA), localize('studioJson.containerChip', "Background of the object and array type chip in the JSON path bar."));
+export const studioJsonColorSwatchBorder = registerColor('studioJson.colorSwatchBorder', jsonColor('colorSwatchBorder'), localize('studioJson.colorSwatchBorder', "Border of the colour swatch next to a colour value in the JSON view."));
+export const studioJsonFoldChipBackground = registerColor('studioJson.foldChipBackground', jsonColor('foldChipBackground'), localize('studioJson.foldChipBackground', "Background of the key count after a folded object or array."));
+export const studioJsonFoldChipText = registerColor('studioJson.foldChipText', jsonColor('foldChipText'), localize('studioJson.foldChipText', "Text of the key count after a folded object or array."));
+export const studioJsonSelectedLine = registerColor('studioJson.selectedLine', jsonColor('selectedLine'), localize('studioJson.selectedLine', "Background of the line under the cursor in the JSON view."));
+export const studioJsonSelectedContainerLines = registerColor('studioJson.selectedContainerLines', jsonColor('selectedContainerLines'), localize('studioJson.selectedContainerLines', "Background of the lines of the selected object or array."));
+export const studioJsonSelectedLineNumber = registerColor('studioJson.selectedLineNumber', jsonColor('selectedLineNumber'), localize('studioJson.selectedLineNumber', "Line number of the line under the cursor in the JSON view."));
+export const studioJsonTypeHint = registerColor('studioJson.typeHint', jsonColor('typeHint'), localize('studioJson.typeHint', "The type shown at the end of the line under the cursor."));
+export const studioJsonCrumb = registerColor('studioJson.crumb', jsonColor('crumb'), localize('studioJson.crumb', "Keys of the JSON path bar."));
+export const studioJsonCurrentCrumb = registerColor('studioJson.currentCrumb', jsonColor('currentCrumb'), localize('studioJson.currentCrumb', "The current key of the JSON path bar."));
+export const studioJsonCrumbSeparator = registerColor('studioJson.crumbSeparator', jsonColor('crumbSeparator'), localize('studioJson.crumbSeparator', "Separators of the JSON path bar."));
+export const studioJsonInvalid = registerColor('studioJson.invalid', jsonColor('invalid'), localize('studioJson.invalid', "The status bar item of a JSON file that does not parse."));
