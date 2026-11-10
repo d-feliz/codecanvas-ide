@@ -231,6 +231,68 @@ const assert = (condition, message) => {
 		assert(!await isShown('.studio-shell > .part.panel'), 'and the drawer hides again');
 
 		await checkJsonView();
+		await checkFlowView();
+	};
+
+	const checkFlowView = async () => {
+		const project = path.join(path.dirname(userSettingsFile), '..', '..', 'sample-project');
+		const flowEditor = '.code-canvas-flow-editor';
+		const flowNode = (blockId: string) => page.locator(`${flowEditor} [data-key$="#${blockId}"]`).first();
+		const pick = (label: string) => page.locator(`${flowEditor} .cc-menu .cc-btn:text-is("${label}")`).click();
+
+		await openFile('order.service.ts');
+		await page.waitForSelector('.code-canvas-editor .cc-block[data-id="OrderService/place"]', { timeout: 30000 });
+		await page.locator('.code-canvas-editor .cc-block[data-id="OrderService/place"] .cc-head').first().click({ button: 'right' });
+		await page.locator('.code-canvas-editor .cc-menu .cc-btn:text-is("Open flow")').click();
+		await page.waitForSelector(`${flowEditor} .cc-block[data-key$="#OrderService/place"]`, { timeout: 30000 });
+		await page.waitForTimeout(1000);
+		const keys = await page.locator(`${flowEditor} [data-key]`).evaluateAll(nodes => nodes.map(node => (node as HTMLElement).dataset.key ?? ''));
+		assert(keys.some(key => key.endsWith('#OrderController/create')) && keys.some(key => key.endsWith('#OrderRepository/save')) && keys.some(key => key.startsWith('server/routes.ts#')), `Flow view: Open flow on a function opens its flow in a tab, across files (${keys.length} functions)`);
+		assert((await page.locator('body').innerText()).includes('Flow: place (temporary)'), 'the tab says the flow is temporary');
+		await page.screenshot({ path: path.join(screenshots, 'studio-flow.png') });
+
+		await flowNode('OrderRepository/save').click({ button: 'right' });
+		await pick('Hide');
+		await page.waitForSelector(`${flowEditor} .cc-flow-hidden[data-key$="#OrderRepository/save"]`, { timeout: 5000 });
+		const flowFile = path.join(project, '.codecanvas', 'flows', 'place.json');
+		await page.waitForFunction(() => document.body.innerText.includes('Flow: place') && !document.body.innerText.includes('Flow: place (temporary)'), null, { timeout: 5000 }).catch(() => { });
+		await page.waitForTimeout(1000);
+		assert(fs.existsSync(flowFile) && JSON.parse(fs.readFileSync(flowFile, 'utf8')).hidden.some((key: string) => key.endsWith('#OrderRepository/save')), 'hiding a function pins the flow: it is saved in .codecanvas/flows/');
+		assert(!(await page.locator('body').innerText()).includes('Flow: place (temporary)'), 'and the tab is no longer temporary');
+
+		await page.locator('.pane-header:has-text("Flow Views")').click();
+		await page.waitForSelector('.code-canvas-flow-row:has-text("place")', { timeout: 10000 });
+		assert(true, 'the Flow views panel lists the saved flow');
+
+		await flowNode('OrderService/retryPlace').dblclick();
+		await page.waitForSelector(`${flowEditor} .cc-editor .monaco-editor[data-uri]`, { timeout: 15000 });
+		const editorFile = await page.locator(`${flowEditor} .cc-editor .monaco-editor[data-uri]`).first().getAttribute('data-uri');
+		assert(!!editorFile?.endsWith('server/order.service.ts'), 'a flow block opens the block editor on its own file, for that file\'s IntelliSense');
+		await page.keyboard.press('Escape');
+
+		await page.keyboard.press('Meta+K');
+		await page.waitForSelector('.quick-input-widget input');
+		await page.waitForSelector('.quick-input-list .monaco-list-row:has-text("Flow ·")', { timeout: 10000 }).catch(() => { });
+		assert(await page.locator('.quick-input-list .monaco-list-row:has-text("Flow ·")').count() > 0, 'Go to Anything lists saved flows');
+		await page.keyboard.press('Escape');
+
+		await openFile('order.controller.ts');
+		await page.waitForTimeout(1000);
+		await page.locator('.studio-top-bar .studio-segment:text-is("Code")').click();
+		await page.waitForSelector('.part.editor .monaco-editor .view-lines', { timeout: 10000 });
+		await page.locator('.part.editor .monaco-editor .view-line:has-text("this.service.place")').first().click();
+		await page.keyboard.press('End');
+		await page.keyboard.type(' // changed');
+		await runCommand('Code Canvas: Open Flow');
+		await page.waitForFunction(() => document.body.innerText.includes('Flow: create (temporary)'), null, { timeout: 15000 }).catch(() => { });
+		assert((await page.locator('body').innerText()).includes('Flow: create (temporary)'), 'Open Flow in the text editor opens the flow of the function at the cursor');
+
+		await page.waitForSelector(`${flowEditor} .cc-block[data-key$="#OrderController/create"]`, { timeout: 15000 });
+		await runCommand('Code Canvas: Show Changes');
+		await page.waitForSelector(`${flowEditor} .cc-block.cc-diff-changed[data-key$="#OrderController/create"]`, { timeout: 15000 }).catch(() => { });
+		assert(await page.locator(`${flowEditor} .cc-block.cc-diff-changed[data-key$="#OrderController/create"]`).count() === 1, 'Show Changes in a flow marks the function edited since the last commit');
+		assert(await page.locator(`${flowEditor} .cc-block.cc-diff-changed[data-key$="#OrderService/place"]`).count() === 0, 'and not the others');
+		await runCommand('Code Canvas: Hide Changes');
 	};
 
 	const checkJsonView = async () => {

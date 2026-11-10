@@ -25,6 +25,9 @@ import { QueryBuilder } from '../../../services/search/common/queryBuilder.js';
 import { ISearchService } from '../../../services/search/common/search.js';
 import { IWorkbenchThemeService } from '../../../services/themes/common/workbenchThemeService.js';
 import { CodeCanvasEditor } from '../../codeCanvas/browser/codeCanvasEditor.js';
+import { CodeCanvasFlowEditorInput } from '../../codeCanvas/browser/codeCanvasFlowEditorInput.js';
+import { listSavedFlows } from '../../codeCanvas/browser/codeCanvasFlows.js';
+import { IFileService } from '../../../../platform/files/common/files.js';
 
 export const STUDIO_GO_TO_ANYTHING_COMMAND_ID = 'studio.goToAnything';
 export const STUDIO_TOGGLE_THEME_COMMAND_ID = 'studio.toggleTheme';
@@ -83,6 +86,7 @@ class GoToAnythingPicker {
 		@ILabelService private readonly labelService: ILabelService,
 		@ICommandService private readonly commandService: ICommandService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
+		@IFileService private readonly fileService: IFileService,
 	) { }
 
 	async show(): Promise<void> {
@@ -94,15 +98,27 @@ class GoToAnythingPicker {
 
 		const nodes = this.nodeItems();
 		const actions = this.actionItems();
+		let flows: GoToAnythingItem[] = [];
+		let shownFiles = this.recentFileItems();
 		let fileSearch: CancellationTokenSource | undefined;
 		const render = (files: GoToAnythingItem[]) => {
+			shownFiles = files;
 			picker.items = [
 				...group(localize('studio.nodesInFile', "Nodes in this file"), nodes),
 				...group(localize('studio.files', "Files"), files),
+				...group(localize('studio.flows', "Flows"), flows),
 				...group(localize('studio.actions', "Actions"), actions),
 			];
 		};
-		render(this.recentFileItems());
+		render(shownFiles);
+		void listSavedFlows(this.fileService, this.workspaceContextService).then(savedFlows => {
+			flows = savedFlows.map(flow => ({
+				label: flow.layout.name,
+				description: localize('studio.flowDescription', "Flow · {0} functions", Object.keys(flow.layout.nodes).length),
+				run: () => this.editorService.openEditor(new CodeCanvasFlowEditorInput(flow.folder, flow.layout, flow.resource)),
+			}));
+			render(shownFiles);
+		});
 
 		disposables.add(picker.onDidChangeValue(value => {
 			if (value.startsWith(COMMANDS_PREFIX)) {

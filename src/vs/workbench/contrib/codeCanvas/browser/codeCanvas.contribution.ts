@@ -26,7 +26,18 @@ import { Schemas } from '../../../../base/common/network.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { Extensions as ConfigurationExtensions, IConfigurationRegistry } from '../../../../platform/configuration/common/configurationRegistry.js';
 import { Extensions as WorkbenchConfigurationExtensions, IConfigurationMigrationRegistry } from '../../../common/configuration.js';
-import { CODE_CANVAS_DEFAULT_SETTING, CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
+import { CODE_CANVAS_DEFAULT_SETTING, CODE_CANVAS_DEFAULT_SETTING_BEFORE_JAVASCRIPT, CODE_CANVAS_EDITOR_ID, CODE_CANVAS_FILE_EXTENSIONS, CODE_CANVAS_FILE_PATTERN, CODE_CANVAS_FLOW_EDITOR_ID, CODE_CANVAS_FLOW_MAX_FUNCTIONS_SETTING, CODE_CANVAS_OPEN_FLOW_COMMAND_ID, CODE_CANVAS_SHOWS_CHANGES } from '../common/codeCanvas.js';
+import { CodeCanvasFlowEditor } from './codeCanvasFlowEditor.js';
+import { CodeCanvasFlowEditorInput } from './codeCanvasFlowEditorInput.js';
+import { CODE_CANVAS_FLOW_VIEWS_ID, CODE_CANVAS_FLOW_VIEWS_TITLE, CodeCanvasFlowViews } from './codeCanvasFlowViews.js';
+import { loadEngine, type FlowLayout } from './codeCanvasEngine.js';
+import { dirname } from '../../../../base/common/resources.js';
+import { isCodeEditor } from '../../../../editor/browser/editorBrowser.js';
+import { INotificationService } from '../../../../platform/notification/common/notification.js';
+import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
+import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js';
+import { Extensions as ViewExtensions, IViewsRegistry } from '../../../common/views.js';
+import { VIEW_CONTAINER } from '../../files/browser/explorerViewlet.js';
 import { CodeCanvasEditor } from './codeCanvasEditor.js';
 import { studioWindowFillingEditorIds } from '../../../browser/studio/studioShell.js';
 import { CodeCanvasEditorInput } from './codeCanvasEditorInput.js';
@@ -44,6 +55,12 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration).regis
 			type: 'boolean',
 			default: true,
 			markdownDescription: localize('codeCanvas.openAsCanvasSetting', "Open TypeScript and JavaScript files as a canvas. When off, they open as text and the canvas is in **Open With…** and the editor title bar."),
+		},
+		[CODE_CANVAS_FLOW_MAX_FUNCTIONS_SETTING]: {
+			type: 'number',
+			default: 200,
+			minimum: 10,
+			markdownDescription: localize('codeCanvas.flowMaxFunctionsSetting', "The most functions a Flow view shows. A bigger flow is cut, and says so."),
 		},
 	},
 });
@@ -126,6 +143,7 @@ registerWorkbenchContribution2(CodeCanvasCodeViewLanes.ID, CodeCanvasCodeViewLan
 const isCanvasFile = ContextKeyExpr.or(...CODE_CANVAS_FILE_EXTENSIONS.map(extension => ResourceContextKey.Extension.isEqualTo(extension)));
 const textEditorOnCanvasFile = ContextKeyExpr.and(ActiveEditorContext.isEqualTo(TEXT_FILE_EDITOR_ID), isCanvasFile);
 const canvasEditorActive = ActiveEditorContext.isEqualTo(CODE_CANVAS_EDITOR_ID);
+const canvasOrFlowEditorActive = ContextKeyExpr.or(canvasEditorActive, ActiveEditorContext.isEqualTo(CODE_CANVAS_FLOW_EDITOR_ID));
 
 registerAction2(class OpenAsCanvasAction extends Action2 {
 	constructor() {
@@ -191,15 +209,99 @@ registerAction2(class ToggleChangesAction extends Action2 {
 			icon: Codicon.diffSingle,
 			toggled: { condition: CODE_CANVAS_SHOWS_CHANGES, title: localize('codeCanvas.hideChanges', "Hide Changes") },
 			f1: true,
-			precondition: canvasEditorActive,
-			menu: { id: MenuId.EditorTitle, group: 'navigation', when: canvasEditorActive },
+			precondition: canvasOrFlowEditorActive,
+			menu: { id: MenuId.EditorTitle, group: 'navigation', when: canvasOrFlowEditorActive },
 		});
 	}
 
 	async run(accessor: ServicesAccessor): Promise<void> {
 		const activePane = accessor.get(IEditorService).activeEditorPane;
-		if (activePane instanceof CodeCanvasEditor) {
+		if (activePane instanceof CodeCanvasEditor || activePane instanceof CodeCanvasFlowEditor) {
 			await activePane.toggleChanges();
 		}
 	}
 });
+
+// ---------------------------------------------------------------- Flow views
+
+Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane).registerEditorPane(
+	EditorPaneDescriptor.create(CodeCanvasFlowEditor, CodeCanvasFlowEditor.ID, localize('codeCanvasFlowEditor', "Flow View")),
+	[new SyncDescriptor(CodeCanvasFlowEditorInput)]
+);
+studioWindowFillingEditorIds.add(CodeCanvasFlowEditor.ID);
+
+class CodeCanvasFlowEditorInputSerializer implements IEditorSerializer {
+	canSerialize(): boolean {
+		return true;
+	}
+
+	serialize(input: CodeCanvasFlowEditorInput): string {
+		return JSON.stringify({ folder: input.folder.toJSON(), layout: input.getLayout(), resource: input.resource?.toJSON() });
+	}
+
+	deserialize(_instantiationService: IInstantiationService, serialized: string): CodeCanvasFlowEditorInput {
+		const { folder, layout, resource } = JSON.parse(serialized) as { folder: UriComponents; layout: FlowLayout; resource?: UriComponents };
+		return new CodeCanvasFlowEditorInput(URI.revive(folder), layout, resource ? URI.revive(resource) : undefined);
+	}
+}
+Registry.as<IEditorFactoryRegistry>(EditorExtensions.EditorFactory).registerEditorSerializer(CodeCanvasFlowEditorInput.ID, CodeCanvasFlowEditorInputSerializer);
+
+registerAction2(class OpenFlowAction extends Action2 {
+	constructor() {
+		super({
+			id: CODE_CANVAS_OPEN_FLOW_COMMAND_ID,
+			title: localize2('codeCanvas.openFlow', "Open Flow"),
+			category: localize2('codeCanvas.category', "Code Canvas"),
+			f1: true,
+			menu: { id: MenuId.EditorContext, group: 'navigation', order: 100, when: isCanvasFile },
+		});
+	}
+
+	/** From a block (the canvas's menu passes its file and block id), or else the function at the text cursor. */
+	async run(accessor: ServicesAccessor, resourceArg?: URI, blockIdArg?: string): Promise<void> {
+		const editorService = accessor.get(IEditorService);
+		const projectService = accessor.get(ICodeCanvasProjectService);
+		const workspaceContextService = accessor.get(IWorkspaceContextService);
+		const notificationService = accessor.get(INotificationService);
+		const textEditor = editorService.activeTextEditorControl;
+		const textModel = isCodeEditor(textEditor) ? textEditor.getModel() : null;
+		const resource = URI.isUri(resourceArg) ? resourceArg : textModel?.uri;
+		if (!resource) {
+			return;
+		}
+		const folder = workspaceContextService.getWorkspaceFolder(resource)?.uri ?? dirname(resource);
+		const [engine, folderProject] = await Promise.all([loadEngine(), projectService.getFolderProject(folder)]);
+		const path = folderProject.projectPath(resource);
+		const fileModel = path ? folderProject.project.getModel(path) : undefined;
+		if (!path || !fileModel) {
+			return;
+		}
+		let block = typeof blockIdArg === 'string' ? fileModel.blocks.get(blockIdArg) : undefined;
+		const cursor = isCodeEditor(textEditor) ? textEditor.getPosition() : null;
+		if (!block && textModel && cursor) {
+			block = engine.blockAt(fileModel, textModel.getOffsetAt(cursor)) ?? undefined;
+			while (block && block.kind !== 'function' && block.kind !== 'component') {
+				block = block.parentId ? fileModel.blocks.get(block.parentId) : undefined;
+			}
+		}
+		if (!block) {
+			notificationService.info(localize('codeCanvas.noFunctionHere', "Put the cursor inside a function to open its flow."));
+			return;
+		}
+		const layout = engine.emptyFlowLayout({ path, blockId: block.id }, block.name);
+		await editorService.openEditor(new CodeCanvasFlowEditorInput(folder, layout, undefined));
+	}
+});
+
+const flowViewsIcon = registerIcon('code-canvas-flow-views-view-icon', Codicon.typeHierarchySub, localize('codeCanvasFlowViewsIcon', "View icon of the Flow views view."));
+Registry.as<IViewsRegistry>(ViewExtensions.ViewsRegistry).registerViews([{
+	id: CODE_CANVAS_FLOW_VIEWS_ID,
+	name: CODE_CANVAS_FLOW_VIEWS_TITLE,
+	containerIcon: flowViewsIcon,
+	ctorDescriptor: new SyncDescriptor(CodeCanvasFlowViews),
+	canToggleVisibility: true,
+	canMoveView: true,
+	collapsed: true,
+	order: 3,
+	weight: 20,
+}], VIEW_CONTAINER);

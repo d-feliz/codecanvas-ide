@@ -22,3 +22,10 @@ export const CODE_CANVAS_FILE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js'
 
 /** Per-repo folder with block positions, meant to be committed: `.codecanvas/<path>.json`. */
 export const CODE_CANVAS_LAYOUT_FOLDER = '.codecanvas';
+
+export const CODE_CANVAS_FLOW_EDITOR_ID = 'workbench.editor.codeCanvasFlow';
+export const CODE_CANVAS_FLOW_INPUT_ID = 'workbench.input.codeCanvasFlow';
+/** Saved flows, in each workspace folder: `.codecanvas/flows/<name>.json`. */
+export const CODE_CANVAS_FLOWS_FOLDER = '.codecanvas/flows';
+export const CODE_CANVAS_OPEN_FLOW_COMMAND_ID = 'codeCanvas.openFlow';
+export const CODE_CANVAS_FLOW_MAX_FUNCTIONS_SETTING = 'codeCanvas.flow.maxFunctions';

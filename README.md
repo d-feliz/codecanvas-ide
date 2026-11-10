@@ -66,6 +66,13 @@ organizes your code without getting in your way.
   desaturated, added and changed blocks get a chip, removed blocks show in red where they were.
 - **Resolve merge conflicts** on the canvas: conflicted blocks are marked, and Keep current /
   incoming / both resolve them. VS Code's own conflict actions also work in the block editor.
+- **See a feature's flow.** Right-click a function (on the canvas or in the code) → Open Flow shows
+  the functions connected to it, across files: its callers up to the entry points, such as the route
+  that registers a handler, and its calls down to the end (router → controller → service →
+  repository). Each file is a box; a loop is a line going back with a "loop" chip; shared helpers are
+  folded. Edit blocks there with IntelliSense from their own file, or create a function in a file's
+  box. A flow is temporary until you change it; then it is saved in `.codecanvas/flows/` and listed in
+  the Flow views panel and in Go to Anything. `codeCanvas.flow.maxFunctions` sets its size limit.
 - **Read JSON files.** A `.json` or `.jsonc` file stays text, with a few marks on top: the path of
   the value under the cursor (with Copy path), its type, a key count on folded objects, a Structure
   view of the top-level keys, and a filter that dims what does not match.

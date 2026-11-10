@@ -183,6 +183,12 @@ export class StudioTopBar extends Disposable {
 		groupListeners.add(group.onDidModelChange(change => {
 			if (change.kind !== GroupModelChangeKind.EDITOR_LABEL) {
 				this.renderOpenFiles();
+			} else if (change.editor) {
+				// Only the name changes (a flow is pinned, a file renamed): no need to rebuild every pill.
+				const name = this.openFileNames.get(change.editor);
+				if (name) {
+					name.textContent = change.editor.getName();
+				}
 			}
 			if (change.kind === GroupModelChangeKind.EDITOR_ACTIVE) {
 				this.renderEditorActions();
@@ -195,10 +201,13 @@ export class StudioTopBar extends Disposable {
 		this.renderViewMode();
 	}
 
+	private readonly openFileNames = new Map<EditorInput, HTMLElement>();
+
 	private renderOpenFiles(): void {
 		const group = this.editorGroupsService.mainPart.activeGroup;
 		clearNode(this.openFilesList);
 		this.openFilePillListeners.clear();
+		this.openFileNames.clear();
 		this.openFiles.style.display = group.editors.length ? '' : 'none';
 		for (const editor of group.editors) {
 			this.openFilesList.append(this.createOpenFilePill(group, editor));
@@ -212,7 +221,9 @@ export class StudioTopBar extends Disposable {
 		pill.classList.toggle('studio-active', isActive);
 		pill.setAttribute('aria-label', editor.getTitle());
 		append(pill, $(`span.studio-file-dot.${this.languageClassOf(editor)}`));
-		append(pill, $('span.studio-open-file-name')).textContent = editor.getName();
+		const name = append(pill, $('span.studio-open-file-name'));
+		name.textContent = editor.getName();
+		this.openFileNames.set(editor, name);
 		this.openFilePillListeners.add(addDisposableListener(pill, EventType.CLICK, () => group.openEditor(editor)));
 		this.openFilePillListeners.add(addDisposableListener(pill, EventType.CONTEXT_MENU, event => {
 			event.preventDefault();
